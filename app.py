@@ -6,7 +6,7 @@ from groq import Groq
 
 # ========== CONFIGURATION ==========
 API_KEY = "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"
-MODEL = "llama-3.3-70b-versatile"
+MODEL = "qwen/qwen3-32b"
 
 client = Groq(api_key=API_KEY)
 
@@ -213,3 +213,4 @@ def simulate_stream():
 if __name__ == "__main__":
     print(f"🌟 SciCanvas SVG Edition – Khởi động (Model: {MODEL})")
     app.run(host="127.0.0.1", port=5000, debug=True)
+
