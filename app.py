@@ -1,5 +1,6 @@
 import json
 import traceback
+import re
 from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory, Response, stream_with_context
 from groq import Groq
@@ -11,59 +12,32 @@ MODEL = "openai/gpt-oss-120b"
 client = Groq(api_key=API_KEY)
 
 APP_DIR = Path(__file__).resolve().parent
-# Không cần template_folder nữa vì ta gửi thẳng file
 app = Flask(__name__, static_folder=str(APP_DIR))
 
-# ========== SIÊU SYSTEM PROMPT ==========
+# ========== SIÊU SYSTEM PROMPT (ÉP BUỘC TỌA ĐỘ VÀ FORMAT) ==========
 SYSTEM_PROMPT = """
-Bạn là SciCanvas AI – Kỹ sư Đồ họa SVG Siêu thực và là Nhà Vật lý học xuất chúng.
+Bạn là SciCanvas AI. Nhiệm vụ: Giải thích khoa học và Viết code SVG mô phỏng.
 
-NHIỆM VỤ CỦA BẠN: 
-1. Giải thích hiện tượng khoa học (bắt buộc dùng công thức LaTeX dạng $$...$$ hoặc \\[...\\] cho công thức vật lý).
-2. Tạo ra mô hình SVG TUYỆT ĐẸP, BẮT BUỘC CÓ ANIMATION, và TỌA ĐỘ PHẢI CHUẨN XÁC.
+QUY TẮC BẮT BUỘC:
+1. ĐỊNH DẠNG TRẢ VỀ:
+   Phải chia làm 2 phần riêng biệt bằng thẻ:
+   <EXPLANATION>
+   ... (Giải thích dùng LaTeX $$...$$ cho công thức)
+   </EXPLANATION>
+   <SVG>
+   ... (Code SVG thô, KHÔNG ĐƯỢC DÙNG ```svg bao quanh)
+   </SVG>
 
-═══════════════════════════════
-LUẬT ĐỊNH DẠNG:
-═══════════════════════════════
-<EXPLANATION>
-Giải thích khoa học (dùng LaTeX cho Toán học).
-Dùng [→ id_cua_the_svg] để tham chiếu. VD: "Mặt Trời [→ sun]".
-</EXPLANATION>
+2. QUY TẮC TỌA ĐỘ (CHỐNG LỖI VỊ TRÍ):
+   - Luôn dùng ViewBox="0 0 1000 1000".
+   - Luôn đặt TÂM VŨ TRỤ ở giữa: <g transform="translate(500, 500)">.
+   - Mọi hành tinh/vệ tinh quay quanh tâm phải dùng <animateTransform attributeName="transform" type="rotate" ... />.
+   - KHÔNG tự tính toán sin/cos thủ công (dễ sai), hãy dùng Group xoay.
 
-<SVG>
-<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
-  <!-- Code SVG ở đây -->
-</svg>
-</SVG>
-
-═══════════════════════════════
-BÍ QUYẾT XÂY DỰNG TỌA ĐỘ ĐỂ VẬT THỂ KHÔNG BỊ SAI LỆCH:
-═══════════════════════════════
-LLM thường tính sai tọa độ. BẠN BẮT BUỘC PHẢI làm theo cấu trúc NHÓM (Group <g>) có translate để xoay:
-
-1. Thiết lập Tâm Vũ Trụ (Ở giữa khung hình 1000x1000):
-   <g transform="translate(500, 500)"> 
-     <!-- Vẽ vật trung tâm ở cx="0" cy="0" -->
-     <circle id="sun" r="50"/>
-
-     <!-- Vẽ Quỹ đạo -->
-     <circle id="orbit-earth" r="250" fill="none" stroke="white" stroke-dasharray="5 5"/>
-
-     <!-- Trái Đất quay quanh Mặt Trời -->
-     <g id="earth-system">
-       <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="10s" repeatCount="indefinite"/>
-       
-       <!-- Dịch chuyển Trái đất ra xa tâm 250px -->
-       <g transform="translate(250, 0)">
-         <circle id="earth" r="20"/>
-       </g>
-     </g>
-   </g>
-
-LUẬT KHÁC:
-- Cấm vẽ các hành tinh quá nhỏ (<5px) hoặc quá to.
-- Phải có Gradient 3D và Glow Filter.
-- Phải dùng Background màu tối #030613.
+3. THẨM MỸ:
+   - Nền vũ trụ màu tối #050510.
+   - Hành tinh phải có Gradient 3D.
+   - Có hiệu ứng Glow (Filter).
 """
 
 def _build_messages(user_prompt: str, history: list, last_svg: str):
@@ -76,13 +50,12 @@ def _build_messages(user_prompt: str, history: list, last_svg: str):
     
     user_content = user_prompt
     if last_svg and last_svg.strip():
-        user_content += "\n\n---\n[Mã SVG LẦN TRƯỚC (Hãy sửa lại bằng cấu trúc <g transform> nếu lần trước bị sai tọa độ):]\n" + last_svg.strip()
+        user_content += "\n\n---\n[SVG cũ:]\n" + last_svg.strip()
 
     messages.append({"role": "user", "content": user_content})
     return messages
 
 
-# SỬA LỖI TEMPLATE NOT FOUND Ở ĐÂY: DÙNG SEND_FROM_DIRECTORY
 @app.route("/")
 def index():
     return send_from_directory(APP_DIR, "index.html")
@@ -106,7 +79,7 @@ def simulate_stream():
             stream = client.chat.completions.create(
                 model=MODEL,
                 messages=messages,
-                temperature=0.3, 
+                temperature=0.4, 
                 stream=True,
             )
 
@@ -121,53 +94,67 @@ def simulate_stream():
                 delta = chunk.choices[0].delta.content
                 full_text += delta
 
+                # --- XỬ LÝ PHẦN GIẢI THÍCH ---
                 if not explanation_started:
                     if "<EXPLANATION>" in full_text:
                         explanation_started = True
                         last_yielded_expl_idx = full_text.find("<EXPLANATION>") + len("<EXPLANATION>")
-                    elif len(full_text) > 30 and "<EXPLANATION>" not in full_text and "<SVG>" not in full_text and "<svg" not in full_text:
-                        explanation_started = True
-                        last_yielded_expl_idx = 0
+                    # Fallback nếu AI quên thẻ
+                    elif len(full_text) > 50 and "<SVG>" not in full_text and "<svg" not in full_text: 
+                        if not "<EXPLANATION>" in full_text:
+                             explanation_started = True
+                             last_yielded_expl_idx = 0
 
                 if explanation_started and not explanation_ended:
-                    if "</EXPLANATION>" in full_text:
-                        end_idx = full_text.find("</EXPLANATION>")
+                    end_tag = "</EXPLANATION>"
+                    if end_tag in full_text:
+                        end_idx = full_text.find(end_tag)
                         if end_idx > last_yielded_expl_idx:
                             chunk_text = full_text[last_yielded_expl_idx:end_idx]
                             yield f"event: explanation\ndata: {json.dumps({'c': chunk_text})}\n\n"
                         last_yielded_expl_idx = len(full_text)
                         explanation_ended = True
-                    elif "<SVG>" in full_text or "<svg " in full_text:
-                        end_idx = full_text.find("<SVG>") if "<SVG>" in full_text else full_text.find("<svg ")
+                    elif "<SVG>" in full_text: # Gặp thẻ SVG thì dừng giải thích
+                        end_idx = full_text.find("<SVG>")
                         if end_idx > last_yielded_expl_idx:
-                            chunk_text = full_text[last_yielded_expl_idx:end_idx].replace("</EXPLANATION>", "")
+                            chunk_text = full_text[last_yielded_expl_idx:end_idx]
                             yield f"event: explanation\ndata: {json.dumps({'c': chunk_text})}\n\n"
                         last_yielded_expl_idx = len(full_text)
                         explanation_ended = True
                     else:
-                        safe_end = max(last_yielded_expl_idx, len(full_text) - 15)
+                        safe_end = max(last_yielded_expl_idx, len(full_text) - 10)
                         if safe_end > last_yielded_expl_idx:
                             chunk_text = full_text[last_yielded_expl_idx:safe_end]
                             if chunk_text:
                                 yield f"event: explanation\ndata: {json.dumps({'c': chunk_text})}\n\n"
                             last_yielded_expl_idx = safe_end
 
+            # --- XỬ LÝ VÀ LÀM SẠCH SVG (QUAN TRỌNG NHẤT) ---
             svg_content = ""
+            
+            # 1. Cố gắng tìm nội dung giữa thẻ <SVG>
             if "<SVG>" in full_text and "</SVG>" in full_text:
                 start = full_text.find("<SVG>") + len("<SVG>")
                 end = full_text.find("</SVG>")
-                svg_content = full_text[start:end].strip()
+                svg_content = full_text[start:end]
+            
+            # 2. Nếu không có thẻ bao, tìm trực tiếp thẻ <svg ...>
             elif "<svg" in full_text and "</svg>" in full_text:
                 start = full_text.find("<svg")
                 end = full_text.find("</svg>") + len("</svg>")
-                svg_content = full_text[start:end].strip()
+                svg_content = full_text[start:end]
 
             if svg_content:
+                # === BƯỚC LÀM SẠCH ===
+                # Loại bỏ markdown code block ```svg và ```
+                svg_content = svg_content.replace("```svg", "").replace("```", "").strip()
+                
+                # Gửi SVG sạch về client
                 yield f"event: svg\ndata: {json.dumps({'c': svg_content})}\n\n"
 
         except Exception as e:
             traceback.print_exc()
-            yield f"event: explanation\ndata: {json.dumps({'c': f'<br><br>**Lỗi API:** {str(e)}'})}\n\n"
+            yield f"event: explanation\ndata: {json.dumps({'c': f'<br><br>**Lỗi:** {str(e)}'})}\n\n"
 
         yield f"event: done\ndata: {{}}\n\n"
 
