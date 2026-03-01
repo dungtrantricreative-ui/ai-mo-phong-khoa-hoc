@@ -5,16 +5,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SciCanvas - AI Mô phỏng Khoa học</title>
-    <!-- Thư viện Icon và Font -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&display=swap"
         rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+    <!-- THƯ VIỆN HIỂN THỊ CÔNG THỨC TOÁN HỌC (MATHJAX) -->
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
     <style>
         :root {
-            /* Bảng màu Gốc Vô cùng Thanh lịch */
             --bg-color: #fcfbf8;
             --text-main: #2b2a27;
             --text-muted: #8e8c87;
@@ -47,7 +54,6 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* ═══ BỐ CỤC CHÍNH ═══ */
         .main-content {
             flex: 1;
             min-width: 0;
@@ -60,7 +66,7 @@
         }
 
         body.split-view .main-content {
-            flex: 0 0 45%;
+            flex: 0 0 40%;
         }
 
         .center-container {
@@ -82,7 +88,6 @@
             padding-top: 20px;
         }
 
-        /* ═══ MÀN HÌNH CHÀO MỪNG ═══ */
         #welcome-screen {
             display: flex;
             flex-direction: column;
@@ -135,7 +140,6 @@
             animation-delay: 0.1s;
         }
 
-        /* ═══ LỊCH SỬ CHAT ═══ */
         #chat-history {
             width: 100%;
             flex-grow: 1;
@@ -150,10 +154,6 @@
 
         #chat-history::-webkit-scrollbar {
             width: 6px;
-        }
-
-        #chat-history::-webkit-scrollbar-track {
-            background: transparent;
         }
 
         #chat-history::-webkit-scrollbar-thumb {
@@ -206,6 +206,7 @@
             padding: 12px 0;
             width: 100%;
             box-shadow: none;
+            overflow-x: auto;
         }
 
         .ai-icon {
@@ -217,13 +218,8 @@
             filter: drop-shadow(0 2px 6px rgba(209, 107, 71, 0.25));
         }
 
-        /* Markdown Styles */
         .message.ai .message-content p {
             margin-bottom: 14px;
-        }
-
-        .message.ai .message-content p:last-child {
-            margin-bottom: 0;
         }
 
         .message.ai .message-content strong {
@@ -231,45 +227,6 @@
             color: #433e38;
         }
 
-        .message.ai .message-content ul,
-        .message.ai .message-content ol {
-            margin-left: 20px;
-            margin-bottom: 14px;
-        }
-
-        .message.ai .message-content li {
-            margin-bottom: 6px;
-        }
-
-        .message.ai .message-content code {
-            background-color: #f0eee8;
-            padding: 3px 7px;
-            border-radius: 6px;
-            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-            font-size: 0.85em;
-            color: var(--accent-orange);
-            border: 1px solid rgba(209, 107, 71, 0.1);
-        }
-
-        .message.ai .message-content pre {
-            background-color: var(--code-bg);
-            color: #d4d4d4;
-            padding: 18px;
-            border-radius: 14px;
-            overflow-x: auto;
-            margin: 18px 0;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .message.ai .message-content pre code {
-            background-color: transparent;
-            border: none;
-            padding: 0;
-            color: inherit;
-            font-size: 0.9em;
-        }
-
-        /* ═══ ANNOTATION LINKS (Interactive markers) ═══ */
         .annotation-link {
             display: inline-flex;
             align-items: center;
@@ -278,36 +235,25 @@
             background: var(--accent-orange-light);
             padding: 2px 10px;
             border-radius: 8px;
-            border: 1px solid rgba(209, 107, 71, 0.2);
             cursor: pointer;
             font-size: 0.9em;
             font-weight: 500;
-            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-            text-decoration: none;
-            white-space: nowrap;
+            transition: all 0.3s;
         }
 
         .annotation-link::before {
             content: '◉';
             font-size: 0.65em;
             opacity: 0.8;
-            transition: transform 0.3s;
         }
 
         .annotation-link:hover,
         .annotation-link.active {
             background: var(--accent-orange);
             color: white;
-            box-shadow: 0 4px 12px rgba(209, 107, 71, 0.3);
             transform: translateY(-2px);
         }
 
-        .annotation-link:hover::before,
-        .annotation-link.active::before {
-            transform: scale(1.2);
-        }
-
-        /* ═══ Ô NHẬP LỆNH ═══ */
         .chat-wrapper {
             width: 100%;
             display: flex;
@@ -337,7 +283,7 @@
             display: flex;
             flex-direction: column;
             min-height: 120px;
-            transition: box-shadow 0.3s ease, border-color 0.3s ease;
+            transition: box-shadow 0.3s;
         }
 
         .chat-box:focus-within {
@@ -351,45 +297,16 @@
             outline: none;
             resize: none;
             font-size: 16px;
-            color: var(--text-main);
             background: transparent;
             flex-grow: 1;
             margin-bottom: 16px;
-            line-height: 1.6;
             font-family: inherit;
-        }
-
-        .chat-box textarea::placeholder {
-            color: var(--text-muted);
-            font-weight: 400;
-        }
-
-        .chat-box textarea:disabled {
-            opacity: 0.6;
         }
 
         .chat-controls {
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
-
-        .controls-left i {
-            font-size: 22px;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: color 0.2s, transform 0.2s;
-        }
-
-        .controls-left i:hover {
-            color: var(--text-main);
-            transform: rotate(90deg);
-        }
-
-        .controls-right {
-            display: flex;
-            align-items: center;
-            gap: 16px;
         }
 
         .send-btn {
@@ -402,34 +319,19 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.25s;
         }
 
         .send-btn:hover {
             background-color: var(--accent-orange);
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(209, 107, 71, 0.3);
-        }
-
-        .send-btn:active {
-            transform: scale(0.95);
         }
 
         .send-btn.disabled {
             opacity: 0.5;
-            cursor: not-allowed;
-            background-color: var(--text-muted);
-            box-shadow: none;
-            transform: none;
+            pointer-events: none;
         }
 
-        .send-btn i {
-            font-size: 20px;
-            font-weight: bold;
-        }
-
-        /* ═══ KHUNG PREVIEW (SVG PANEL) Bên Trái ═══ */
         .preview-panel {
             display: none;
             flex: 0 0 0;
@@ -439,37 +341,26 @@
             border-left: 1px solid var(--chat-border);
             transition: flex 0.6s cubic-bezier(0.25, 1, 0.3, 1), opacity 0.4s ease;
             opacity: 0;
-            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.02);
             position: relative;
         }
 
         body.split-view .preview-panel {
             display: flex;
-            flex: 0 0 55%;
+            flex: 0 0 60%;
             opacity: 1;
         }
 
         .preview-header {
-            flex-shrink: 0;
             padding: 16px 24px;
             border-bottom: 1px solid var(--chat-border);
             display: flex;
-            align-items: center;
             justify-content: space-between;
             background: var(--chat-bg);
             z-index: 20;
         }
 
         .preview-header span {
-            font-size: 15px;
             font-weight: 600;
-            color: var(--text-main);
-            letter-spacing: 0.3px;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 12px;
         }
 
         .btn-action {
@@ -478,105 +369,120 @@
             border-radius: 10px;
             border: 1px solid var(--chat-border);
             background: var(--chat-bg);
-            color: var(--text-muted);
             cursor: pointer;
+            transition: all 0.2s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .btn-action:hover {
-            background: var(--msg-user-bg);
-            color: var(--accent-orange);
-            border-color: rgba(209, 107, 71, 0.2);
-            transform: translateY(-1px);
-        }
-
-        .btn-action i {
-            font-size: 18px;
         }
 
         .preview-frame-wrap {
             flex: 1;
-            min-height: 0;
             padding: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at center, #ffffff 0%, #fcfbf8 100%);
-            overflow: auto;
+            position: relative;
+            overflow: hidden;
         }
 
-        /* Vùng hiển thị SVG */
         #svg-container {
             width: 100%;
             height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-            background: #000;
-            /* Bắt buộc nền đen cho mô phỏng không gian */
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15) inset, 0 10px 40px rgba(0, 0, 0, 0.08);
+            background-color: #030613;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: center center;
             overflow: hidden;
             position: relative;
-            animation: zoomIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+            cursor: grab;
         }
 
-        @keyframes zoomIn {
-            from {
-                opacity: 0;
-                transform: scale(0.95);
-            }
+        #svg-container:active {
+            cursor: grabbing;
+        }
 
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
+        #svg-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            border-radius: 20px;
         }
 
         #svg-container svg {
             width: 100%;
             height: 100%;
+            z-index: 1;
+            transform-origin: center center;
         }
 
-        /* ═══ SVG INTERACTION STYLES ═══ */
-        #svg-container .svg-highlight-outline {
-            outline: 3px solid #ff9d76;
-            outline-offset: 4px;
+        .zoom-controls {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 8px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+
+        .zoom-controls button {
+            width: 38px;
+            height: 38px;
             border-radius: 8px;
-            transition: outline 0.3s ease, filter 0.3s ease;
-            filter: drop-shadow(0 0 15px rgba(255, 157, 118, 0.8));
+            border: none;
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: 0.2s;
+        }
+
+        .zoom-controls button:hover {
+            background: var(--accent-orange);
+            transform: scale(1.1);
+        }
+
+        #svg-container .svg-highlight-outline {
+            filter: drop-shadow(0 0 15px rgba(255, 157, 118, 0.9)) !important;
         }
 
         .svg-tooltip {
             position: fixed;
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
             color: var(--accent-orange);
             padding: 6px 14px;
             border-radius: 10px;
-            font-size: 0.85rem;
             font-weight: 600;
             border: 1px solid rgba(209, 107, 71, 0.2);
             pointer-events: none;
             opacity: 0;
-            transition: opacity 0.2s, transform 0.2s;
-            transform: translateY(5px) scale(0.95);
             z-index: 1000;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
         }
 
         .svg-tooltip.visible {
             opacity: 1;
-            transform: translateY(0) scale(1);
         }
 
-        /* ═══ CURSOR ═══ */
         .blinking-cursor::after {
             content: '▋';
-            display: inline-block;
             animation: blink 1s step-end infinite;
             color: var(--accent-orange);
             margin-left: 4px;
@@ -597,38 +503,27 @@
 </head>
 
 <body>
-
     <main class="main-content">
         <div class="center-container" id="main-container">
-
             <div id="welcome-screen">
                 <div class="heading">
-                    <svg viewBox="0 0 24 24" fill="none" class="ph-activity" stroke="currentColor" stroke-width="2.5"
-                        stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" class="ph-activity" stroke="currentColor" stroke-width="2.5">
                         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                     </svg>
                     <h1>AI Mô phỏng Khoa học</h1>
                 </div>
-                <p>
-                    Mô tả bất kỳ hiện tượng khoa học nào (Hệ Mặt Trời, Tế bào, Bức xạ...), AI sẽ giải thích và tạo mô
-                    phỏng đồ họa SVG <b>sống động, tương tác</b> để minh họa.
-                </p>
+                <p>Mô tả hiện tượng khoa học, AI sẽ giải thích (có công thức) và tạo đồ họa SVG <b>sống động, tương
+                        tác</b> để minh họa.</p>
             </div>
-
             <div id="chat-history"></div>
-
             <div class="chat-wrapper">
                 <div class="chat-box">
-                    <textarea id="user-input" placeholder="Ví dụ: Mô phỏng quỹ đạo Trái Đất quanh Mặt Trời..."
+                    <textarea id="user-input" placeholder="Ví dụ: Mô phỏng Trái Đất quay quanh Mặt Trời..."
                         rows="2"></textarea>
                     <div class="chat-controls">
-                        <div class="controls-left">
-                            <i class="ph ph-plus"></i>
-                        </div>
+                        <div class="controls-left"><i class="ph ph-plus"></i></div>
                         <div class="controls-right">
-                            <div class="send-btn" id="send-btn">
-                                <i class="ph ph-arrow-up"></i>
-                            </div>
+                            <div class="send-btn" id="send-btn"><i class="ph ph-arrow-up"></i></div>
                         </div>
                     </div>
                 </div>
@@ -638,61 +533,66 @@
 
     <aside class="preview-panel" id="preview-panel">
         <div class="preview-header">
-            <span>Minh họa mô phỏng</span>
+            <span>Minh họa mô phỏng (Có thể Zoom & Kéo thả)</span>
             <div class="header-actions">
-                <button type="button" class="btn-action" id="btn-reload" title="Tải lại SVG" style="display:none;">
-                    <i class="ph ph-arrows-clockwise"></i>
-                </button>
-                <button type="button" class="btn-action" id="preview-close" title="Đóng panel">
-                    <i class="ph ph-x"></i>
-                </button>
+                <button type="button" class="btn-action" id="btn-reload" title="Tải lại SVG" style="display:none;"><i
+                        class="ph ph-arrows-clockwise"></i></button>
+                <button type="button" class="btn-action" id="preview-close" title="Đóng panel"><i
+                        class="ph ph-x"></i></button>
             </div>
         </div>
         <div class="preview-frame-wrap">
             <div id="svg-container"></div>
+            <div class="zoom-controls">
+                <button id="btn-zoom-in" title="Phóng to"><i class="ph ph-magnifying-glass-plus"></i></button>
+                <button id="btn-zoom-reset" title="Mặc định"><i class="ph ph-corners-out"></i></button>
+                <button id="btn-zoom-out" title="Thu nhỏ"><i class="ph ph-magnifying-glass-minus"></i></button>
+            </div>
         </div>
     </aside>
-
     <div class="svg-tooltip" id="svg-tooltip"></div>
 
     <script>
         marked.setOptions({ breaks: true });
-
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
         const chatHistory = document.getElementById('chat-history');
         const welcomeScreen = document.getElementById('welcome-screen');
         const mainContainer = document.getElementById('main-container');
-        const previewPanel = document.getElementById('preview-panel');
         const svgContainer = document.getElementById('svg-container');
-        const previewClose = document.getElementById('preview-close');
         const btnReload = document.getElementById('btn-reload');
         const svgTooltip = document.getElementById('svg-tooltip');
 
-        let isFirstMessage = true;
-        let isGenerating = false;
-        let lastGeneratedSvg = '';
-        let conversationHistory = [];
+        let isGenerating = false; let lastGeneratedSvg = ''; let conversationHistory = [];
+        let scale = 1; let panX = 0; let panY = 0; let isPanning = false; let startClientX = 0; let startClientY = 0;
 
-        // ═══ MESSAGE FUNCTIONS ═══
+        function updateSvgTransform() {
+            const svgEl = svgContainer.querySelector('svg');
+            if (svgEl) svgEl.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        }
+        function resetZoomAndPan() { scale = 1; panX = 0; panY = 0; updateSvgTransform(); }
+
+        svgContainer.addEventListener('wheel', (e) => {
+            e.preventDefault(); const zoomSensitivity = 0.05;
+            if (e.deltaY < 0) scale += zoomSensitivity; else scale -= zoomSensitivity;
+            scale = Math.min(Math.max(0.2, scale), 5); updateSvgTransform();
+        });
+        svgContainer.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return; isPanning = true;
+            startClientX = e.clientX - panX; startClientY = e.clientY - panY;
+        });
+        window.addEventListener('mousemove', (e) => { if (!isPanning) return; panX = e.clientX - startClientX; panY = e.clientY - startClientY; updateSvgTransform(); });
+        window.addEventListener('mouseup', () => { isPanning = false; });
+        window.addEventListener('mouseleave', () => { isPanning = false; });
+        document.getElementById('btn-zoom-in').addEventListener('click', () => { scale = Math.min(scale + 0.2, 5); updateSvgTransform(); });
+        document.getElementById('btn-zoom-out').addEventListener('click', () => { scale = Math.max(scale - 0.2, 0.2); updateSvgTransform(); });
+        document.getElementById('btn-zoom-reset').addEventListener('click', resetZoomAndPan);
+
         function appendMessage(sender, htmlContent, id = '') {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${sender}`;
-            if (id) msgDiv.id = `msg-${id}`;
-
-            if (sender === 'ai') {
-                msgDiv.innerHTML = `
-                    <svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                    </svg>
-                    <div class="message-content">${htmlContent}</div>
-                `;
-            } else {
-                msgDiv.innerHTML = `<div class="message-content">${htmlContent.replace(/\n/g, '<br>')}</div>`;
-            }
-
-            chatHistory.appendChild(msgDiv);
-            chatHistory.scrollTop = chatHistory.scrollHeight;
+            const msgDiv = document.createElement('div'); msgDiv.className = `message ${sender}`; if (id) msgDiv.id = `msg-${id}`;
+            if (sender === 'ai') msgDiv.innerHTML = `<svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg><div class="message-content">${htmlContent}</div>`;
+            else msgDiv.innerHTML = `<div class="message-content">${htmlContent.replace(/\n/g, '<br>')}</div>`;
+            chatHistory.appendChild(msgDiv); chatHistory.scrollTop = chatHistory.scrollHeight;
         }
 
         function updateAIMessage(id, htmlContent, isBlinking = true) {
@@ -703,7 +603,6 @@
             }
         }
 
-        // ═══ ANNOTATION PROCESSING ═══
         function processAnnotations(markdownText) {
             let html = marked.parse(markdownText);
             html = html.replace(/\[→\s*([a-zA-Z0-9_-]+)\]/g, (match, id) => {
@@ -712,213 +611,99 @@
             return html;
         }
 
-        // ═══ SVG HIGHLIGHT SYSTEM ═══
         function highlightSvgElement(elementId, active) {
             const svgEl = svgContainer.querySelector(`#${CSS.escape(elementId)}`);
             if (!svgEl) return;
-
-            if (active) {
-                svgEl.classList.add('svg-highlight-outline');
-            } else {
-                svgEl.classList.remove('svg-highlight-outline');
-            }
+            if (active) svgEl.classList.add('svg-highlight-outline'); else svgEl.classList.remove('svg-highlight-outline');
         }
 
         function highlightAnnotationLink(elementId, active) {
-            const links = document.querySelectorAll(`.annotation-link[data-target="${elementId}"]`);
-            links.forEach(link => {
-                if (active) {
-                    link.classList.add('active');
-                } else {
-                    link.classList.remove('active');
-                }
+            document.querySelectorAll(`.annotation-link[data-target="${elementId}"]`).forEach(link => {
+                if (active) link.classList.add('active'); else link.classList.remove('active');
             });
         }
 
-        // ═══ SVG INTERACTION (Hover shapes → Text Highlight) ═══
         function setupSvgInteraction() {
-            const svgEl = svgContainer.querySelector('svg');
-            if (!svgEl) return;
-
-            const elements = svgEl.querySelectorAll('[id]');
-            elements.forEach(el => {
-                el.style.cursor = 'pointer';
-                el.style.transition = 'all 0.3s ease';
-
+            const svgEl = svgContainer.querySelector('svg'); if (!svgEl) return;
+            const ignoreTags = ['filter', 'radialgradient', 'lineargradient', 'defs', 'style', 'animate', 'animatemotion', 'animatetransform', 'g'];
+            svgEl.querySelectorAll('[id]').forEach(el => {
+                if (ignoreTags.includes(el.tagName.toLowerCase())) return;
                 el.addEventListener('mouseenter', (e) => {
-                    const id = el.id;
-                    highlightAnnotationLink(id, true);
-                    el.classList.add('svg-highlight-outline');
-                    // Giao tiếp bóng đổ ngược khi hover vào hình
-                    if (el.tagName === 'circle' || el.tagName === 'rect' || el.tagName === 'path') {
-                        el.dataset.originalTransform = el.getAttribute('transform') || '';
-                        // Slight pop effect
-                    }
-
-                    svgTooltip.textContent = `#${id}`;
-                    svgTooltip.classList.add('visible');
-                    updateTooltipPosition(e);
+                    if (isPanning) return; highlightAnnotationLink(el.id, true);
+                    el.classList.add('svg-highlight-outline'); svgTooltip.textContent = `#${el.id}`;
+                    svgTooltip.classList.add('visible'); updateTooltipPosition(e);
                 });
-
-                el.addEventListener('mouseleave', () => {
-                    const id = el.id;
-                    highlightAnnotationLink(id, false);
-                    el.classList.remove('svg-highlight-outline');
-                    svgTooltip.classList.remove('visible');
-                });
-
-                el.addEventListener('mousemove', updateTooltipPosition);
+                el.addEventListener('mouseleave', () => { highlightAnnotationLink(el.id, false); el.classList.remove('svg-highlight-outline'); svgTooltip.classList.remove('visible'); });
+                el.addEventListener('mousemove', (e) => { if (!isPanning) updateTooltipPosition(e); });
             });
         }
 
-        function updateTooltipPosition(e) {
-            svgTooltip.style.left = (e.clientX + 16) + 'px';
-            svgTooltip.style.top = (e.clientY + 16) + 'px';
-        }
+        function updateTooltipPosition(e) { svgTooltip.style.left = (e.clientX + 16) + 'px'; svgTooltip.style.top = (e.clientY + 16) + 'px'; }
 
-        // ═══ MAIN FETCH LOGIC ═══
         async function sendMessage() {
-            const text = userInput.value.trim();
-            if (!text || isGenerating) return;
+            const text = userInput.value.trim(); if (!text || isGenerating) return;
+            welcomeScreen.style.display = 'none'; chatHistory.style.display = 'flex'; mainContainer.classList.add('chat-active');
+            isGenerating = true; userInput.value = ''; userInput.disabled = true; sendBtn.classList.add('disabled');
+            svgContainer.innerHTML = ''; btnReload.style.display = 'none';
 
-            if (isFirstMessage) {
-                welcomeScreen.style.opacity = '0';
-                welcomeScreen.style.transform = 'translateY(-20px)';
-                setTimeout(() => {
-                    welcomeScreen.style.display = 'none';
-                    chatHistory.style.display = 'flex';
-                    mainContainer.classList.add('chat-active');
-                }, 400);
-                isFirstMessage = false;
-            }
-
-            isGenerating = true;
-            userInput.value = '';
-            userInput.disabled = true;
-            sendBtn.classList.add('disabled');
-
-            // Xóa SVG cũ trên giao diện trước khi render cái mới
-            svgContainer.innerHTML = '';
-            btnReload.style.display = 'none';
-
-            appendMessage('user', text);
-            const loadingId = Date.now().toString();
-            // Start loading state
-            appendMessage('ai', 'Đang phân tích dữ liệu khoa học và đồ họa...', loadingId);
+            appendMessage('user', text); const loadingId = Date.now().toString();
+            appendMessage('ai', 'Đang tính toán hệ tọa độ và tạo mô phỏng...', loadingId);
 
             try {
                 const res = await fetch('/api/simulate/stream', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: text,
-                        last_svg: lastGeneratedSvg || undefined,
-                        history: conversationHistory
-                    })
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: text, last_svg: lastGeneratedSvg || undefined, history: conversationHistory })
                 });
 
-                if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
-                    updateAIMessage(loadingId, `<span style="color: #d16b47; font-weight: 500;">Lỗi: ${err.error || res.statusText}</span>`, false);
-                    return;
-                }
+                if (!res.ok) throw new Error("Lỗi Server");
 
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder('utf-8');
-                let buffer = '';
-                let lastExplanation = '';
-                let receivedSvg = '';
+                const reader = res.body.getReader(); const decoder = new TextDecoder('utf-8');
+                let buffer = ''; let lastExplanation = ''; let receivedSvg = '';
 
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
-
                     buffer += decoder.decode(value, { stream: true });
-                    const chunks = buffer.split('\n\n');
-                    buffer = chunks.pop() || ''; // Hold pending part
+                    const chunks = buffer.split('\n\n'); buffer = chunks.pop() || '';
 
                     for (const chunk of chunks) {
-                        const lines = chunk.split('\n');
-                        let eventType = '';
-                        let dataLine = '';
-
+                        const lines = chunk.split('\n'); let eventType = ''; let dataLine = '';
                         for (const line of lines) {
                             if (line.startsWith('event: ')) eventType = line.slice(7).trim();
                             if (line.startsWith('data: ')) dataLine += line.slice(6).trim();
                         }
-
                         if (!dataLine) continue;
 
-                        try {
-                            const parsed = JSON.parse(dataLine);
-                            if (eventType === 'explanation' && parsed.c) {
-                                lastExplanation += parsed.c;
-                                updateAIMessage(loadingId, processAnnotations(lastExplanation), true);
-                            } else if (eventType === 'svg' && parsed.c) {
-                                receivedSvg = parsed.c;
-                                lastGeneratedSvg = receivedSvg;
-
-                                // Kích hoạt Split View
-                                document.body.classList.add('split-view');
-                                svgContainer.innerHTML = receivedSvg;
-                                btnReload.style.display = 'flex';
-
-                                setTimeout(setupSvgInteraction, 150);
-                            }
-                        } catch (e) {
-                            console.warn("Parse Error: ", e);
+                        const parsed = JSON.parse(dataLine);
+                        if (eventType === 'explanation' && parsed.c) {
+                            lastExplanation += parsed.c;
+                            updateAIMessage(loadingId, processAnnotations(lastExplanation), true);
+                        } else if (eventType === 'svg' && parsed.c) {
+                            receivedSvg = parsed.c; lastGeneratedSvg = receivedSvg;
+                            document.body.classList.add('split-view');
+                            svgContainer.innerHTML = receivedSvg;
+                            resetZoomAndPan(); btnReload.style.display = 'flex'; setTimeout(setupSvgInteraction, 150);
                         }
                     }
                 }
-
-                // Kết thúc message
                 updateAIMessage(loadingId, processAnnotations(lastExplanation), false);
+                conversationHistory.push({ role: 'user', content: text }, { role: 'assistant', content: lastExplanation });
 
-                // Update memory
-                conversationHistory.push({ role: 'user', content: text });
-                conversationHistory.push({ role: 'assistant', content: lastExplanation });
-                if (conversationHistory.length > 12) conversationHistory = conversationHistory.slice(-12);
+                // Render Toán học (MathJax) sau khi text đã hoàn thành
+                if (window.MathJax) {
+                    MathJax.typesetPromise([document.getElementById(`msg-${loadingId}`)]);
+                }
 
-            } catch (err) {
-                updateAIMessage(loadingId, `<span style="color: #d16b47; font-weight: 600;">Lỗi kết nối.</span> Kiểm tra server đã chạy chưa.`, false);
-            } finally {
-                isGenerating = false;
-                userInput.disabled = false;
-                sendBtn.classList.remove('disabled');
-
-                setTimeout(() => {
-                    userInput.focus();
-                }, 100);
-            }
+            } catch (err) { updateAIMessage(loadingId, `Lỗi kết nối API.`, false); }
+            finally { isGenerating = false; userInput.disabled = false; sendBtn.classList.remove('disabled'); userInput.focus(); }
         }
 
-        // ═══ EVENTS ═══
-        previewClose.addEventListener('click', function () {
-            document.body.classList.remove('split-view');
-        });
-
-        btnReload.addEventListener('click', () => {
-            if (lastGeneratedSvg) {
-                // Trigger re-animation by replacing HTML
-                svgContainer.innerHTML = lastGeneratedSvg;
-                setTimeout(setupSvgInteraction, 150);
-            }
-        });
-
+        document.getElementById('preview-close').addEventListener('click', () => document.body.classList.remove('split-view'));
+        btnReload.addEventListener('click', () => { if (lastGeneratedSvg) { svgContainer.innerHTML = lastGeneratedSvg; resetZoomAndPan(); setTimeout(setupSvgInteraction, 150); } });
         sendBtn.addEventListener('click', sendMessage);
-
-        userInput.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        // Auto-focus on load
+        userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
         window.onload = () => userInput.focus();
-
     </script>
 </body>
-
 
 </html>
