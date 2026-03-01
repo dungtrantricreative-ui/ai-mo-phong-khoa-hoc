@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SciCanvas – AI Mô phỏng Khoa học SVG</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-deep: #080c1a;
+            --bg-panel: #111827;
+            --bg-card: #1a2236;
+            --text-main: #f0f4fc;
+            --text-dim: #7b8ba8;
+            --accent: #6366f1;
+            --accent-light: #818cf8;
+            --accent-glow: rgba(99, 102, 241, 0.35);
+            --accent-svg-highlight: rgba(99, 220, 241, 0.9);
+            --border: #1e293b;
+            --border-light: #2d3a52;
+            --success: #22c55e;
+            --font: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-deep);
+            color: var(--text-main);
+            font-family: var(--font);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* ═══ LAYOUT ═══ */
+        #chat-section {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            z-index: 10;
+            background: var(--bg-deep);
+        }
+
+        #preview-section {
+            width: 0;
+            height: 100%;
+            background: #050816;
+            border-left: 1px solid var(--border);
+            overflow: hidden;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        body.split-active #chat-section {
+            width: 42%;
+        }
+
+        body.split-active #preview-section {
+            width: 58%;
+        }
+
+        /* ═══ CHAT HEADER ═══ */
+        .chat-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(16px);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+            flex-shrink: 0;
+        }
+
+        .header-logo svg {
+            width: 22px;
+            height: 22px;
+            fill: white;
+        }
+
+        .header-text h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.3px;
+        }
+
+        .header-text .subtitle {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        /* ═══ CHAT HISTORY ═══ */
+        #chat-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            scroll-behavior: smooth;
+        }
+
+        #chat-history::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        #chat-history::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #chat-history::-webkit-scrollbar-thumb {
+            background: var(--border-light);
+            border-radius: 10px;
+        }
+
+        .message {
+            max-width: 88%;
+            margin-bottom: 20px;
+            animation: msgIn 0.35s ease;
+        }
+
+        @keyframes msgIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            margin-left: auto;
+        }
+
+        .message.user .bubble {
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 20px 20px 4px 20px;
+            box-shadow: 0 4px 20px var(--accent-glow);
+            font-size: 0.93rem;
+            line-height: 1.55;
+        }
+
+        .message.ai {
+            margin-right: auto;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .ai-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 0 14px rgba(139, 92, 246, 0.35);
+            margin-top: 4px;
+        }
+
+        .ai-avatar svg {
+            width: 18px;
+            height: 18px;
+            fill: white;
+        }
+
+        .message.ai .bubble {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            padding: 16px 20px;
+            border-radius: 4px 20px 20px 20px;
+            font-size: 0.93rem;
+            line-height: 1.7;
+            color: #c8d3e8;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        /* ═══ MARKDOWN STYLES ═══ */
+        .bubble h1,
+        .bubble h2,
+        .bubble h3 {
+            color: #e8edf6;
+            margin-top: 8px;
+            margin-bottom: 6px;
+        }
+
+        .bubble h2 {
+            font-size: 1.1rem;
+        }
+
+        .bubble h3 {
+            font-size: 1rem;
+        }
+
+        .bubble p {
+            margin-bottom: 10px;
+        }
+
+        .bubble p:last-child {
+            margin-bottom: 0;
+        }
+
+        .bubble ul,
+        .bubble ol {
+            padding-left: 20px;
+            margin-bottom: 10px;
+        }
+
+        .bubble li {
+            margin-bottom: 4px;
+        }
+
+        .bubble strong {
+            color: #e0e7f5;
+        }
+
+        .bubble em {
+            color: #a5b4d0;
+        }
+
+        .bubble code {
+            background: rgba(99, 102, 241, 0.15);
+            padding: 2px 7px;
+            border-radius: 5px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .bubble pre {
+            background: #0c1021;
+            padding: 14px;
+            border-radius: 10px;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            margin: 10px 0;
+        }
+
+        .bubble pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            color: #a5b4fc;
+        }
+
+        /* ═══ ANNOTATION LINKS ═══ */
+        .annotation-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            color: var(--accent-light);
+            background: rgba(99, 102, 241, 0.1);
+            padding: 1px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            cursor: pointer;
+            font-size: 0.88em;
+            font-weight: 500;
+            transition: all 0.25s ease;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .annotation-link::before {
+            content: '◉';
+            font-size: 0.6em;
+            opacity: 0.7;
+        }
+
+        .annotation-link:hover,
+        .annotation-link.active {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: var(--accent-light);
+            color: white;
+            box-shadow: 0 0 12px var(--accent-glow);
+            transform: translateY(-1px);
+        }
+
+        /* ═══ INPUT AREA ═══ */
+        .input-area {
+            padding: 16px 24px 20px;
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border);
+        }
+
+        .input-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--bg-deep);
+            border: 1px solid var(--border-light);
+            padding: 6px 6px 6px 20px;
+            border-radius: 28px;
+            transition: all 0.25s;
+        }
+
+        .input-box:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .input-box input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: white;
+            font-size: 0.95rem;
+            font-family: inherit;
+            padding: 8px 0;
+        }
+
+        .input-box input::placeholder {
+            color: var(--text-dim);
+        }
+
+        .send-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 18px var(--accent-glow);
+        }
+
+        .send-btn:disabled {
+            background: var(--border);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .send-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* ═══ PREVIEW PANEL ═══ */
+        .preview-toolbar {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            z-index: 20;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-tool {
+            background: rgba(8, 12, 26, 0.75);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 8px 14px;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-family: inherit;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-tool:hover {
+            color: white;
+            background: rgba(99, 102, 241, 0.3);
+            border-color: var(--accent);
+        }
+
+        #svg-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            padding: 16px;
+            background: radial-gradient(ellipse at center, #0d1225 0%, #050816 100%);
+        }
+
+        #svg-container svg {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 12px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+        }
+
+        /* SVG Element Highlighting */
+        #svg-container .svg-highlight-outline {
+            outline: 2px solid var(--accent-svg-highlight);
+            outline-offset: 3px;
+            border-radius: 4px;
+            transition: outline 0.3s ease, filter 0.3s ease;
+            filter: drop-shadow(0 0 8px var(--accent-svg-highlight));
+        }
+
+        /* SVG Element Tooltip */
+        .svg-tooltip {
+            position: fixed;
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(8px);
+            color: var(--accent-light);
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: 1px solid var(--accent);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .svg-tooltip.visible {
+            opacity: 1;
+        }
+
+        /* ═══ CURSOR ═══ */
+        .blinking-cursor::after {
+            content: '▌';
+            animation: blink 1s step-end infinite;
+            color: var(--accent);
+            margin-left: 4px;
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        /* ═══ EMPTY STATE ═══ */
+        .empty-preview {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-dim);
+            gap: 12px;
+        }
+
+        .empty-preview svg {
+            width: 48px;
+            height: 48px;
+            opacity: 0.3;
+        }
+
+        .empty-preview span {
+            font-size: 0.9rem;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- LEFT: CHAT -->
+    <section id="chat-section">
+        <div class="chat-header">
+            <div class="header-logo">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2L2 22h20L12 2zm0 3.8l7.2 14.2H4.8L12 5.8z" />
+                </svg>
+            </div>
+            <div class="header-text">
+                <h1>SciCanvas SVG</h1>
+                <div class="subtitle">AI mô phỏng khoa học bằng SVG · Llama-3.3-70b</div>
+            </div>
+        </div>
+
+        <div id="chat-history">
+            <div class="message ai" id="welcome-msg">
+                <div class="ai-avatar"><svg viewBox="0 0 24 24">
+                        <path d="M12 2L2 22h20L12 2zm0 3.8l7.2 14.2H4.8L12 5.8z" />
+                    </svg></div>
+                <div class="bubble">
+                    Xin chào! Tôi là <strong>SciCanvas AI</strong> phiên bản SVG.<br><br>
+                    Tôi tạo mô phỏng bằng <strong>SVG thuần</strong> với animation, gradient và glow filter.
+                    Phần giải thích sẽ <strong>tham chiếu trực tiếp</strong> vào các phần tử trên canvas – hover vào để
+                    xem.<br><br>
+                    <em>Thử: "Mô phỏng hệ mặt trời", "Cấu tạo nguyên tử", "Sóng điện từ"…</em>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-box">
+                <input type="text" id="user-input" placeholder="Nhập hiện tượng khoa học bạn muốn mô phỏng..."
+                    autocomplete="off">
+                <button class="send-btn" id="send-btn">
+                    <svg viewBox="0 0 24 24">
+                        <line x1="12" y1="19" x2="12" y2="5"></line>
+                        <polyline points="5 12 12 5 19 12"></polyline>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- RIGHT: SVG PREVIEW -->
+    <section id="preview-section">
+        <div class="preview-toolbar">
+            <button class="btn-tool" id="btn-reload" style="display:none;" title="Tải lại SVG">↻ Tải lại</button>
+            <button class="btn-tool" id="btn-close" title="Đóng preview">✕ Đóng</button>
+        </div>
+        <div id="svg-container">
+            <div class="empty-preview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="M21 15l-5-5L5 21" />
+                </svg>
+                <span>SVG mô phỏng sẽ hiển thị ở đây</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- TOOLTIP -->
+    <div class="svg-tooltip" id="svg-tooltip"></div>
+
+    <script>
+        marked.setOptions({ breaks: true });
+
+        const chatHistory = document.getElementById('chat-history');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const svgContainer = document.getElementById('svg-container');
+        const btnClose = document.getElementById('btn-close');
+        const btnReload = document.getElementById('btn-reload');
+        const svgTooltip = document.getElementById('svg-tooltip');
+
+        let isGenerating = false;
+        let lastGeneratedSvg = '';
+        let conversationHistory = [];
+
+        // ═══ AI AVATAR SVG ═══
+        const AI_AVATAR_HTML = `<div class="ai-avatar"><svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.8l7.2 14.2H4.8L12 5.8z"/></svg></div>`;
+
+        // ═══ MESSAGE FUNCTIONS ═══
+        function addMessage(role, content, msgId = null) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            if (msgId) div.id = msgId;
+
+            if (role === 'user') {
+                div.innerHTML = `<div class="bubble">${escapeHtml(content)}</div>`;
+            } else {
+                div.innerHTML = `${AI_AVATAR_HTML}<div class="bubble">${content}</div>`;
+            }
+            chatHistory.appendChild(div);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+            return div;
+        }
+
+        function updateAiBubble(msgId, htmlContent, isBlinking = true) {
+            const el = document.getElementById(msgId);
+            if (!el) return;
+            const bubble = el.querySelector('.bubble');
+            bubble.innerHTML = htmlContent + (isBlinking ? '<span class="blinking-cursor"></span>' : '');
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        // ═══ ANNOTATION PROCESSING ═══
+        function processAnnotations(markdownText) {
+            // Parse markdown first
+            let html = marked.parse(markdownText);
+            // Replace [→ id] with clickable annotation links
+            html = html.replace(/\[→\s*([a-zA-Z0-9_-]+)\]/g, (match, id) => {
+                return `<span class="annotation-link" data-target="${id}" onmouseenter="highlightSvgElement('${id}', true)" onmouseleave="highlightSvgElement('${id}', false)">${id}</span>`;
+            });
+            return html;
+        }
+
+        // ═══ SVG HIGHLIGHT SYSTEM ═══
+        function highlightSvgElement(elementId, active) {
+            const svgEl = svgContainer.querySelector(`#${CSS.escape(elementId)}`);
+            if (!svgEl) return;
+
+            if (active) {
+                svgEl.classList.add('svg-highlight-outline');
+                // Scroll into view if needed
+                svgEl.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                svgEl.classList.remove('svg-highlight-outline');
+            }
+        }
+
+        function highlightAnnotationLink(elementId, active) {
+            const links = document.querySelectorAll(`.annotation-link[data-target="${elementId}"]`);
+            links.forEach(link => {
+                if (active) {
+                    link.classList.add('active');
+                    link.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        }
+
+        // ═══ SVG INTERACTION (hover elements → highlight annotations) ═══
+        function setupSvgInteraction() {
+            const svgEl = svgContainer.querySelector('svg');
+            if (!svgEl) return;
+
+            // Find all elements with IDs inside the SVG
+            const elements = svgEl.querySelectorAll('[id]');
+            elements.forEach(el => {
+                el.style.cursor = 'pointer';
+                el.addEventListener('mouseenter', (e) => {
+                    const id = el.id;
+                    highlightAnnotationLink(id, true);
+                    el.classList.add('svg-highlight-outline');
+                    // Show tooltip
+                    svgTooltip.textContent = `#${id}`;
+                    svgTooltip.classList.add('visible');
+                    updateTooltipPosition(e);
+                });
+                el.addEventListener('mouseleave', () => {
+                    const id = el.id;
+                    highlightAnnotationLink(id, false);
+                    el.classList.remove('svg-highlight-outline');
+                    svgTooltip.classList.remove('visible');
+                });
+                el.addEventListener('mousemove', updateTooltipPosition);
+            });
+        }
+
+        function updateTooltipPosition(e) {
+            svgTooltip.style.left = (e.clientX + 14) + 'px';
+            svgTooltip.style.top = (e.clientY - 10) + 'px';
+        }
+
+        // ═══ MAIN SUBMIT FUNCTION ═══
+        async function submitPrompt() {
+            const text = userInput.value.trim();
+            if (!text || isGenerating) return;
+
+            isGenerating = true;
+            userInput.value = '';
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+
+            addMessage('user', text);
+            const msgId = 'ai-msg-' + Date.now();
+            addMessage('ai', '<span class="blinking-cursor">Đang phân tích và tạo SVG mô phỏng...</span>', msgId);
+
+            try {
+                const response = await fetch('/api/simulate/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: text,
+                        last_svg: lastGeneratedSvg,
+                        history: conversationHistory.map(t => ({ role: t.role, content: t.content }))
+                    })
+                });
+
+                if (!response.ok) throw new Error('Server error ' + response.status);
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+                let currentExplanation = '';
+                let receivedSvg = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const chunks = buffer.split('\n\n');
+                    buffer = chunks.pop();
+
+                    for (const chunk of chunks) {
+                        const lines = chunk.split('\n');
+                        let eventType = 'message';
+                        let dataLine = '';
+
+                        for (const line of lines) {
+                            if (line.startsWith('event:')) eventType = line.substring(6).trim();
+                            if (line.startsWith('data:')) dataLine += line.substring(5);
+                        }
+
+                        if (!dataLine.trim()) continue;
+
+                        try {
+                            const parsed = JSON.parse(dataLine);
+                            if (eventType === 'explanation' && parsed.c) {
+                                currentExplanation += parsed.c;
+                                updateAiBubble(msgId, processAnnotations(currentExplanation), true);
+                            } else if (eventType === 'svg' && parsed.c) {
+                                receivedSvg = parsed.c;
+                                lastGeneratedSvg = receivedSvg;
+
+                                // Render SVG directly in DOM
+                                document.body.classList.add('split-active');
+                                svgContainer.innerHTML = receivedSvg;
+                                btnReload.style.display = 'flex';
+
+                                // Setup bidirectional hover interactions
+                                setTimeout(setupSvgInteraction, 100);
+                            }
+                        } catch (e) {
+                            console.warn('SSE parse error:', e);
+                        }
+                    }
+                }
+
+                // Finalize
+                updateAiBubble(msgId, processAnnotations(currentExplanation), false);
+
+                // Save to conversation history (max 6 turns)
+                conversationHistory.push({ role: 'user', content: text });
+                conversationHistory.push({
+                    role: 'assistant',
+                    content: currentExplanation
+                });
+                if (conversationHistory.length > 12) {
+                    conversationHistory = conversationHistory.slice(-12);
+                }
+
+            } catch (err) {
+                updateAiBubble(msgId, `<strong style="color: #ef4444;">Lỗi:</strong> ${err.message}`, false);
+            } finally {
+                isGenerating = false;
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        // ═══ EVENTS ═══
+        sendBtn.addEventListener('click', submitPrompt);
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitPrompt();
+            }
+        });
+
+        btnClose.addEventListener('click', () => {
+            document.body.classList.remove('split-active');
+        });
+
+        btnReload.addEventListener('click', () => {
+            if (lastGeneratedSvg) {
+                svgContainer.innerHTML = lastGeneratedSvg;
+                setTimeout(setupSvgInteraction, 100);
+            }
+        });
+    </script>
+</body>
+
+</html>

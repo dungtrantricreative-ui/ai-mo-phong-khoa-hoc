@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SciCanvas - AI Mô phỏng Khoa học</title>
+    <!-- Thư viện Icon và Font -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        :root {
+            /* Bảng màu Gốc Vô cùng Thanh lịch */
+            --bg-color: #fcfbf8;
+            --text-main: #2b2a27;
+            --text-muted: #8e8c87;
+            --accent-orange: #d16b47;
+            --accent-orange-light: rgba(209, 107, 71, 0.15);
+            --chat-bg: #ffffff;
+            --chat-border: #e6e4df;
+            --msg-user-bg: #f2efe9;
+            --code-bg: #1e1e1e;
+            --font-serif: 'Playfair Display', serif;
+            --font-sans: 'Inter', -apple-system, sans-serif;
+            --shadow-sm: 0 4px 20px rgba(0, 0, 0, 0.03);
+            --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.06);
+            --shadow-glow: 0 0 15px rgba(209, 107, 71, 0.25);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ═══ BỐ CỤC CHÍNH ═══ */
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            transition: flex 0.6s cubic-bezier(0.25, 1, 0.3, 1);
+            position: relative;
+        }
+
+        body.split-view .main-content {
+            flex: 0 0 45%;
+        }
+
+        .center-container {
+            width: 100%;
+            max-width: 800px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0 30px;
+            padding-bottom: 12vh;
+            transition: all 0.6s cubic-bezier(0.25, 1, 0.3, 1);
+        }
+
+        .center-container.chat-active {
+            justify-content: flex-end;
+            padding-bottom: 30px;
+            padding-top: 20px;
+        }
+
+        /* ═══ MÀN HÌNH CHÀO MỪNG ═══ */
+        #welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .heading {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 35px;
+            animation: floatIn 0.8s ease-out;
+        }
+
+        @keyframes floatIn {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .heading svg {
+            color: var(--accent-orange);
+            width: 36px;
+            height: 36px;
+            filter: drop-shadow(0 2px 8px rgba(209, 107, 71, 0.3));
+        }
+
+        .heading h1 {
+            font-family: var(--font-serif);
+            font-size: 46px;
+            font-weight: 600;
+            color: #433e38;
+            letter-spacing: -0.5px;
+        }
+
+        #welcome-screen p {
+            color: var(--text-muted);
+            font-size: 16px;
+            text-align: center;
+            max-width: 450px;
+            line-height: 1.6;
+            animation: floatIn 1s ease-out backwards;
+            animation-delay: 0.1s;
+        }
+
+        /* ═══ LỊCH SỬ CHAT ═══ */
+        #chat-history {
+            width: 100%;
+            flex-grow: 1;
+            overflow-y: auto;
+            display: none;
+            flex-direction: column;
+            gap: 28px;
+            margin-bottom: 24px;
+            padding-right: 14px;
+            scroll-behavior: smooth;
+        }
+
+        #chat-history::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #chat-history::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #chat-history::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.08);
+            border-radius: 10px;
+        }
+
+        .message {
+            display: flex;
+            gap: 18px;
+            line-height: 1.7;
+            font-size: 16px;
+            opacity: 0;
+            transform: translateY(15px);
+            animation: msgFadeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        @keyframes msgFadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.ai {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 85%;
+            padding: 16px 20px;
+            border-radius: 18px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+        }
+
+        .message.user .message-content {
+            background-color: var(--msg-user-bg);
+            color: var(--text-main);
+            border-bottom-right-radius: 4px;
+            font-weight: 400;
+        }
+
+        .message.ai .message-content {
+            background-color: transparent;
+            color: var(--text-main);
+            padding: 12px 0;
+            width: 100%;
+            box-shadow: none;
+        }
+
+        .ai-icon {
+            color: var(--accent-orange);
+            margin-top: 14px;
+            width: 26px;
+            height: 26px;
+            flex-shrink: 0;
+            filter: drop-shadow(0 2px 6px rgba(209, 107, 71, 0.25));
+        }
+
+        /* Markdown Styles */
+        .message.ai .message-content p {
+            margin-bottom: 14px;
+        }
+
+        .message.ai .message-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message.ai .message-content strong {
+            font-weight: 600;
+            color: #433e38;
+        }
+
+        .message.ai .message-content ul,
+        .message.ai .message-content ol {
+            margin-left: 20px;
+            margin-bottom: 14px;
+        }
+
+        .message.ai .message-content li {
+            margin-bottom: 6px;
+        }
+
+        .message.ai .message-content code {
+            background-color: #f0eee8;
+            padding: 3px 7px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+            font-size: 0.85em;
+            color: var(--accent-orange);
+            border: 1px solid rgba(209, 107, 71, 0.1);
+        }
+
+        .message.ai .message-content pre {
+            background-color: var(--code-bg);
+            color: #d4d4d4;
+            padding: 18px;
+            border-radius: 14px;
+            overflow-x: auto;
+            margin: 18px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .message.ai .message-content pre code {
+            background-color: transparent;
+            border: none;
+            padding: 0;
+            color: inherit;
+            font-size: 0.9em;
+        }
+
+        /* ═══ ANNOTATION LINKS (Interactive markers) ═══ */
+        .annotation-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--accent-orange);
+            background: var(--accent-orange-light);
+            padding: 2px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(209, 107, 71, 0.2);
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .annotation-link::before {
+            content: '◉';
+            font-size: 0.65em;
+            opacity: 0.8;
+            transition: transform 0.3s;
+        }
+
+        .annotation-link:hover,
+        .annotation-link.active {
+            background: var(--accent-orange);
+            color: white;
+            box-shadow: 0 4px 12px rgba(209, 107, 71, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .annotation-link:hover::before,
+        .annotation-link.active::before {
+            transform: scale(1.2);
+        }
+
+        /* ═══ Ô NHẬP LỆNH ═══ */
+        .chat-wrapper {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.8s ease-out backwards;
+            animation-delay: 0.2s;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chat-box {
+            background-color: var(--chat-bg);
+            border: 1px solid var(--chat-border);
+            border-radius: 20px;
+            padding: 18px 22px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            min-height: 120px;
+            transition: box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+
+        .chat-box:focus-within {
+            box-shadow: var(--shadow-md), var(--shadow-glow);
+            border-color: rgba(209, 107, 71, 0.3);
+        }
+
+        .chat-box textarea {
+            width: 100%;
+            border: none;
+            outline: none;
+            resize: none;
+            font-size: 16px;
+            color: var(--text-main);
+            background: transparent;
+            flex-grow: 1;
+            margin-bottom: 16px;
+            line-height: 1.6;
+            font-family: inherit;
+        }
+
+        .chat-box textarea::placeholder {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .chat-box textarea:disabled {
+            opacity: 0.6;
+        }
+
+        .chat-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .controls-left i {
+            font-size: 22px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s, transform 0.2s;
+        }
+
+        .controls-left i:hover {
+            color: var(--text-main);
+            transform: rotate(90deg);
+        }
+
+        .controls-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .send-btn {
+            background-color: var(--text-main);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .send-btn:hover {
+            background-color: var(--accent-orange);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(209, 107, 71, 0.3);
+        }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        .send-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: var(--text-muted);
+            box-shadow: none;
+            transform: none;
+        }
+
+        .send-btn i {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        /* ═══ KHUNG PREVIEW (SVG PANEL) Bên Trái ═══ */
+        .preview-panel {
+            display: none;
+            flex: 0 0 0;
+            flex-direction: column;
+            height: 100%;
+            background: var(--bg-color);
+            border-left: 1px solid var(--chat-border);
+            transition: flex 0.6s cubic-bezier(0.25, 1, 0.3, 1), opacity 0.4s ease;
+            opacity: 0;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.02);
+            position: relative;
+        }
+
+        body.split-view .preview-panel {
+            display: flex;
+            flex: 0 0 55%;
+            opacity: 1;
+        }
+
+        .preview-header {
+            flex-shrink: 0;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--chat-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--chat-bg);
+            z-index: 20;
+        }
+
+        .preview-header span {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-main);
+            letter-spacing: 0.3px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-action {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            border: 1px solid var(--chat-border);
+            background: var(--chat-bg);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .btn-action:hover {
+            background: var(--msg-user-bg);
+            color: var(--accent-orange);
+            border-color: rgba(209, 107, 71, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-action i {
+            font-size: 18px;
+        }
+
+        .preview-frame-wrap {
+            flex: 1;
+            min-height: 0;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, #ffffff 0%, #fcfbf8 100%);
+            overflow: auto;
+        }
+
+        /* Vùng hiển thị SVG */
+        #svg-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            background: #000;
+            /* Bắt buộc nền đen cho mô phỏng không gian */
+            overflow: hidden;
+            position: relative;
+            animation: zoomIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        @keyframes zoomIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        #svg-container svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ═══ SVG INTERACTION STYLES ═══ */
+        #svg-container .svg-highlight-outline {
+            outline: 3px solid #ff9d76;
+            outline-offset: 4px;
+            border-radius: 8px;
+            transition: outline 0.3s ease, filter 0.3s ease;
+            filter: drop-shadow(0 0 15px rgba(255, 157, 118, 0.8));
+        }
+
+        .svg-tooltip {
+            position: fixed;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            color: var(--accent-orange);
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid rgba(209, 107, 71, 0.2);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            transform: translateY(5px) scale(0.95);
+            z-index: 1000;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        .svg-tooltip.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* ═══ CURSOR ═══ */
+        .blinking-cursor::after {
+            content: '▋';
+            display: inline-block;
+            animation: blink 1s step-end infinite;
+            color: var(--accent-orange);
+            margin-left: 4px;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="main-content">
+        <div class="center-container" id="main-container">
+
+            <div id="welcome-screen">
+                <div class="heading">
+                    <svg viewBox="0 0 24 24" fill="none" class="ph-activity" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    <h1>AI Mô phỏng Khoa học</h1>
+                </div>
+                <p>
+                    Mô tả bất kỳ hiện tượng khoa học nào (Hệ Mặt Trời, Tế bào, Bức xạ...), AI sẽ giải thích và tạo mô
+                    phỏng đồ họa SVG <b>sống động, tương tác</b> để minh họa (Sử dụng Llama-3.3-70b).
+                </p>
+            </div>
+
+            <div id="chat-history"></div>
+
+            <div class="chat-wrapper">
+                <div class="chat-box">
+                    <textarea id="user-input" placeholder="Ví dụ: Mô phỏng quỹ đạo Trái Đất quanh Mặt Trời..."
+                        rows="2"></textarea>
+                    <div class="chat-controls">
+                        <div class="controls-left">
+                            <i class="ph ph-plus"></i>
+                        </div>
+                        <div class="controls-right">
+                            <div class="send-btn" id="send-btn">
+                                <i class="ph ph-arrow-up"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <aside class="preview-panel" id="preview-panel">
+        <div class="preview-header">
+            <span>Minh họa mô phỏng</span>
+            <div class="header-actions">
+                <button type="button" class="btn-action" id="btn-reload" title="Tải lại SVG" style="display:none;">
+                    <i class="ph ph-arrows-clockwise"></i>
+                </button>
+                <button type="button" class="btn-action" id="preview-close" title="Đóng panel">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+        </div>
+        <div class="preview-frame-wrap">
+            <div id="svg-container"></div>
+        </div>
+    </aside>
+
+    <div class="svg-tooltip" id="svg-tooltip"></div>
+
+    <script>
+        marked.setOptions({ breaks: true });
+
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const chatHistory = document.getElementById('chat-history');
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const mainContainer = document.getElementById('main-container');
+        const previewPanel = document.getElementById('preview-panel');
+        const svgContainer = document.getElementById('svg-container');
+        const previewClose = document.getElementById('preview-close');
+        const btnReload = document.getElementById('btn-reload');
+        const svgTooltip = document.getElementById('svg-tooltip');
+
+        let isFirstMessage = true;
+        let isGenerating = false;
+        let lastGeneratedSvg = '';
+        let conversationHistory = [];
+
+        // ═══ MESSAGE FUNCTIONS ═══
+        function appendMessage(sender, htmlContent, id = '') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+            if (id) msgDiv.id = `msg-${id}`;
+
+            if (sender === 'ai') {
+                msgDiv.innerHTML = `
+                    <svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    <div class="message-content">${htmlContent}</div>
+                `;
+            } else {
+                msgDiv.innerHTML = `<div class="message-content">${htmlContent.replace(/\n/g, '<br>')}</div>`;
+            }
+
+            chatHistory.appendChild(msgDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        function updateAIMessage(id, htmlContent, isBlinking = true) {
+            const msgDiv = document.getElementById(`msg-${id}`);
+            if (msgDiv) {
+                msgDiv.querySelector('.message-content').innerHTML = htmlContent + (isBlinking ? '<span class="blinking-cursor"></span>' : '');
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            }
+        }
+
+        // ═══ ANNOTATION PROCESSING ═══
+        function processAnnotations(markdownText) {
+            let html = marked.parse(markdownText);
+            html = html.replace(/\[→\s*([a-zA-Z0-9_-]+)\]/g, (match, id) => {
+                return `<span class="annotation-link" data-target="${id}" onmouseenter="highlightSvgElement('${id}', true)" onmouseleave="highlightSvgElement('${id}', false)">${id}</span>`;
+            });
+            return html;
+        }
+
+        // ═══ SVG HIGHLIGHT SYSTEM ═══
+        function highlightSvgElement(elementId, active) {
+            const svgEl = svgContainer.querySelector(`#${CSS.escape(elementId)}`);
+            if (!svgEl) return;
+
+            if (active) {
+                svgEl.classList.add('svg-highlight-outline');
+            } else {
+                svgEl.classList.remove('svg-highlight-outline');
+            }
+        }
+
+        function highlightAnnotationLink(elementId, active) {
+            const links = document.querySelectorAll(`.annotation-link[data-target="${elementId}"]`);
+            links.forEach(link => {
+                if (active) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        }
+
+        // ═══ SVG INTERACTION (Hover shapes → Text Highlight) ═══
+        function setupSvgInteraction() {
+            const svgEl = svgContainer.querySelector('svg');
+            if (!svgEl) return;
+
+            const elements = svgEl.querySelectorAll('[id]');
+            elements.forEach(el => {
+                el.style.cursor = 'pointer';
+                el.style.transition = 'all 0.3s ease';
+
+                el.addEventListener('mouseenter', (e) => {
+                    const id = el.id;
+                    highlightAnnotationLink(id, true);
+                    el.classList.add('svg-highlight-outline');
+                    // Giao tiếp bóng đổ ngược khi hover vào hình
+                    if (el.tagName === 'circle' || el.tagName === 'rect' || el.tagName === 'path') {
+                        el.dataset.originalTransform = el.getAttribute('transform') || '';
+                        // Slight pop effect
+                    }
+
+                    svgTooltip.textContent = `#${id}`;
+                    svgTooltip.classList.add('visible');
+                    updateTooltipPosition(e);
+                });
+
+                el.addEventListener('mouseleave', () => {
+                    const id = el.id;
+                    highlightAnnotationLink(id, false);
+                    el.classList.remove('svg-highlight-outline');
+                    svgTooltip.classList.remove('visible');
+                });
+
+                el.addEventListener('mousemove', updateTooltipPosition);
+            });
+        }
+
+        function updateTooltipPosition(e) {
+            svgTooltip.style.left = (e.clientX + 16) + 'px';
+            svgTooltip.style.top = (e.clientY + 16) + 'px';
+        }
+
+        // ═══ MAIN FETCH LOGIC ═══
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text || isGenerating) return;
+
+            if (isFirstMessage) {
+                welcomeScreen.style.opacity = '0';
+                welcomeScreen.style.transform = 'translateY(-20px)';
+                setTimeout(() => {
+                    welcomeScreen.style.display = 'none';
+                    chatHistory.style.display = 'flex';
+                    mainContainer.classList.add('chat-active');
+                }, 400);
+                isFirstMessage = false;
+            }
+
+            isGenerating = true;
+            userInput.value = '';
+            userInput.disabled = true;
+            sendBtn.classList.add('disabled');
+
+            // Xóa SVG cũ trên giao diện trước khi render cái mới
+            svgContainer.innerHTML = '';
+            btnReload.style.display = 'none';
+
+            appendMessage('user', text);
+            const loadingId = Date.now().toString();
+            // Start loading state
+            appendMessage('ai', 'Đang phân tích dữ liệu khoa học và đồ họa...', loadingId);
+
+            try {
+                const res = await fetch('/api/simulate/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: text,
+                        last_svg: lastGeneratedSvg || undefined,
+                        history: conversationHistory
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    updateAIMessage(loadingId, `<span style="color: #d16b47; font-weight: 500;">Lỗi: ${err.error || res.statusText}</span>`, false);
+                    return;
+                }
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+                let lastExplanation = '';
+                let receivedSvg = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const chunks = buffer.split('\n\n');
+                    buffer = chunks.pop() || ''; // Hold pending part
+
+                    for (const chunk of chunks) {
+                        const lines = chunk.split('\n');
+                        let eventType = '';
+                        let dataLine = '';
+
+                        for (const line of lines) {
+                            if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+                            if (line.startsWith('data: ')) dataLine += line.slice(6).trim();
+                        }
+
+                        if (!dataLine) continue;
+
+                        try {
+                            const parsed = JSON.parse(dataLine);
+                            if (eventType === 'explanation' && parsed.c) {
+                                lastExplanation += parsed.c;
+                                updateAIMessage(loadingId, processAnnotations(lastExplanation), true);
+                            } else if (eventType === 'svg' && parsed.c) {
+                                receivedSvg = parsed.c;
+                                lastGeneratedSvg = receivedSvg;
+
+                                // Kích hoạt Split View
+                                document.body.classList.add('split-view');
+                                svgContainer.innerHTML = receivedSvg;
+                                btnReload.style.display = 'flex';
+
+                                setTimeout(setupSvgInteraction, 150);
+                            }
+                        } catch (e) {
+                            console.warn("Parse Error: ", e);
+                        }
+                    }
+                }
+
+                // Kết thúc message
+                updateAIMessage(loadingId, processAnnotations(lastExplanation), false);
+
+                // Update memory
+                conversationHistory.push({ role: 'user', content: text });
+                conversationHistory.push({ role: 'assistant', content: lastExplanation });
+                if (conversationHistory.length > 12) conversationHistory = conversationHistory.slice(-12);
+
+            } catch (err) {
+                updateAIMessage(loadingId, `<span style="color: #d16b47; font-weight: 600;">Lỗi kết nối.</span> Kiểm tra server đã chạy chưa.`, false);
+            } finally {
+                isGenerating = false;
+                userInput.disabled = false;
+                sendBtn.classList.remove('disabled');
+
+                setTimeout(() => {
+                    userInput.focus();
+                }, 100);
+            }
+        }
+
+        // ═══ EVENTS ═══
+        previewClose.addEventListener('click', function () {
+            document.body.classList.remove('split-view');
+        });
+
+        btnReload.addEventListener('click', () => {
+            if (lastGeneratedSvg) {
+                // Trigger re-animation by replacing HTML
+                svgContainer.innerHTML = lastGeneratedSvg;
+                setTimeout(setupSvgInteraction, 150);
+            }
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+
+        userInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Auto-focus on load
+        window.onload = () => userInput.focus();
+
+    </script>
+</body>
+
+</html>
