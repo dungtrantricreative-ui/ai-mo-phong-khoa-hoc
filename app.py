@@ -1,19 +1,20 @@
 import json
 import traceback
 from pathlib import Path
-from flask import Flask, request, jsonify, render_template, Response, stream_with_context
+from flask import Flask, request, jsonify, send_from_directory, Response, stream_with_context
 from groq import Groq
 
 # ========== CONFIGURATION ==========
 API_KEY = "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"
-MODEL = "llama-3.3-70b-versatile" 
+MODEL = "openai/gpt-oss-120b" 
 
 client = Groq(api_key=API_KEY)
 
 APP_DIR = Path(__file__).resolve().parent
-app = Flask(__name__, template_folder=str(APP_DIR), static_folder=str(APP_DIR))
+# Không cần template_folder nữa vì ta gửi thẳng file
+app = Flask(__name__, static_folder=str(APP_DIR))
 
-# ========== SIÊU SYSTEM PROMPT (ÉP BUỘC CẤU TRÚC TOẠ ĐỘ CHUẨN) ==========
+# ========== SIÊU SYSTEM PROMPT ==========
 SYSTEM_PROMPT = """
 Bạn là SciCanvas AI – Kỹ sư Đồ họa SVG Siêu thực và là Nhà Vật lý học xuất chúng.
 
@@ -36,9 +37,9 @@ Dùng [→ id_cua_the_svg] để tham chiếu. VD: "Mặt Trời [→ sun]".
 </SVG>
 
 ═══════════════════════════════
-BÍ QUYẾT XÂY DỰNG TỌA ĐỘ ĐỂ VẬT THỂ KHÔNG BỊ SAI LỆCH (QUAN TRỌNG NHẤT):
+BÍ QUYẾT XÂY DỰNG TỌA ĐỘ ĐỂ VẬT THỂ KHÔNG BỊ SAI LỆCH:
 ═══════════════════════════════
-LLM thường tính sai tọa độ quỹ đạo. Vì vậy, BẠN BẮT BUỘC PHẢI làm theo cấu trúc NHÓM (Group <g>) có translate để xoay:
+LLM thường tính sai tọa độ. BẠN BẮT BUỘC PHẢI làm theo cấu trúc NHÓM (Group <g>) có translate để xoay:
 
 1. Thiết lập Tâm Vũ Trụ (Ở giữa khung hình 1000x1000):
    <g transform="translate(500, 500)"> 
@@ -55,12 +56,6 @@ LLM thường tính sai tọa độ quỹ đạo. Vì vậy, BẠN BẮT BUỘC 
        <!-- Dịch chuyển Trái đất ra xa tâm 250px -->
        <g transform="translate(250, 0)">
          <circle id="earth" r="20"/>
-
-         <!-- Mặt Trăng quay quanh Trái Đất (Nested Orbit) -->
-         <g id="moon-system">
-           <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="2s" repeatCount="indefinite"/>
-           <circle id="moon" cx="40" cy="0" r="5"/> <!-- Dịch ra 40px từ Trái Đất -->
-         </g>
        </g>
      </g>
    </g>
@@ -87,9 +82,10 @@ def _build_messages(user_prompt: str, history: list, last_svg: str):
     return messages
 
 
+# SỬA LỖI TEMPLATE NOT FOUND Ở ĐÂY: DÙNG SEND_FROM_DIRECTORY
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return send_from_directory(APP_DIR, "index.html")
 
 
 @app.route("/api/simulate/stream", methods=["POST"])
@@ -110,7 +106,7 @@ def simulate_stream():
             stream = client.chat.completions.create(
                 model=MODEL,
                 messages=messages,
-                temperature=0.3, # GIỮ NHỎ HƠN 0.5 ĐỂ NÓ KHÔNG CHẾ TOẠ ĐỘ LUNG TUNG
+                temperature=0.3, 
                 stream=True,
             )
 
