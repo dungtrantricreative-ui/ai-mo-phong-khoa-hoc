@@ -1,205 +1,423 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SciCanvas - AI Mô phỏng</title>
+    <title>SciCanvas - AI Mô phỏng Khoa học</title>
+    
+    <!-- ICON & FONT -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- MathJax Config -->
+
+    <!-- CẤU HÌNH TOÁN HỌC (MATHJAX) -->
     <script>
-    window.MathJax = {
-      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
-      svg: { fontCache: 'global' },
-      startup: { typeset: false } // Tắt tự động chạy, ta sẽ chạy thủ công
-    };
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+            svg: { fontCache: 'global' },
+            startup: { typeset: false }
+        };
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
     <style>
-        :root { --bg-color: #fcfbf8; --text-main: #2b2a27; --accent-orange: #d16b47; --chat-bg: #ffffff; }
+        :root {
+            /* BẢNG MÀU THANH LỊCH (LIGHT MODE) */
+            --bg-color: #fcfbf8;
+            --text-main: #2b2a27;
+            --text-muted: #8e8c87;
+            --accent-orange: #d16b47;
+            --accent-orange-light: rgba(209, 107, 71, 0.15);
+            --chat-bg: #ffffff;
+            --chat-border: #e6e4df;
+            --msg-user-bg: #f2efe9;
+            --code-bg: #1e1e1e;
+            --font-serif: 'Playfair Display', serif;
+            --font-sans: 'Inter', -apple-system, sans-serif;
+            --shadow-sm: 0 4px 20px rgba(0, 0, 0, 0.03);
+            --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.06);
+            --shadow-glow: 0 0 15px rgba(209, 107, 71, 0.25);
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; height: 100vh; display: flex; overflow: hidden; }
-        
-        .main-content { flex: 1; display: flex; flex-direction: column; align-items: center; transition: 0.5s; position: relative; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- BỐ CỤC CHÍNH --- */
+        .main-content {
+            flex: 1; min-width: 0; display: flex; flex-direction: column;
+            align-items: center; height: 100%; transition: flex 0.6s cubic-bezier(0.25, 1, 0.3, 1);
+            position: relative;
+        }
+
         body.split-view .main-content { flex: 0 0 40%; }
+
+        .center-container {
+            width: 100%; max-width: 800px; height: 100%; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 0 30px; padding-bottom: 12vh;
+            transition: all 0.6s cubic-bezier(0.25, 1, 0.3, 1);
+        }
+
+        .center-container.chat-active { justify-content: flex-end; padding-bottom: 30px; padding-top: 20px; }
+
+        /* --- WELCOME SCREEN --- */
+        #welcome-screen { display: flex; flex-direction: column; align-items: center; transition: 0.4s; }
+        .heading { display: flex; align-items: center; gap: 16px; margin-bottom: 35px; animation: floatIn 0.8s ease-out; }
+        @keyframes floatIn { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
         
-        .chat-container { width: 100%; max-width: 800px; height: 100%; display: flex; flex-direction: column; padding: 20px; padding-bottom: 100px; }
-        #chat-history { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-right: 10px; }
-        
-        .message { display: flex; gap: 15px; line-height: 1.6; animation: fadeIn 0.3s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .heading svg { color: var(--accent-orange); width: 36px; height: 36px; filter: drop-shadow(0 2px 8px rgba(209, 107, 71, 0.3)); }
+        .heading h1 { font-family: var(--font-serif); font-size: 46px; font-weight: 600; color: #433e38; letter-spacing: -0.5px; }
+        #welcome-screen p { color: var(--text-muted); font-size: 16px; text-align: center; max-width: 450px; line-height: 1.6; animation: floatIn 1s backwards 0.1s; }
+
+        /* --- CHAT HISTORY --- */
+        #chat-history {
+            width: 100%; flex-grow: 1; overflow-y: auto; display: none; flex-direction: column;
+            gap: 28px; margin-bottom: 24px; padding-right: 14px; scroll-behavior: smooth;
+        }
+        #chat-history::-webkit-scrollbar { width: 6px; }
+        #chat-history::-webkit-scrollbar-thumb { background-color: rgba(0, 0, 0, 0.08); border-radius: 10px; }
+
+        .message { display: flex; gap: 18px; line-height: 1.7; font-size: 16px; opacity: 0; transform: translateY(15px); animation: msgFadeIn 0.4s forwards; }
+        @keyframes msgFadeIn { to { opacity: 1; transform: translateY(0); } }
+
         .message.user { justify-content: flex-end; }
-        .message-content { max-width: 90%; padding: 15px; border-radius: 15px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .message.user .message-content { background: #f0f0f0; }
-        .ai-icon { width: 24px; height: 24px; color: var(--accent-orange); flex-shrink: 0; margin-top: 10px; }
-        
-        /* MathJax & Code Style */
-        .message-content p { margin-bottom: 10px; }
-        mjx-container { font-size: 1.1em !important; } 
+        .message.ai { justify-content: flex-start; }
 
-        /* Input Area */
-        .input-area { position: absolute; bottom: 30px; width: 90%; max-width: 700px; background: #fff; padding: 10px; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); display: flex; align-items: center; border: 1px solid #eee; }
-        .input-area textarea { flex: 1; border: none; outline: none; padding: 10px; font-family: inherit; resize: none; max-height: 100px; }
-        .send-btn { width: 40px; height: 40px; background: #333; color: #fff; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
-        .send-btn:hover { background: var(--accent-orange); }
+        .message-content { max-width: 85%; padding: 16px 20px; border-radius: 18px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02); }
+        .message.user .message-content { background-color: var(--msg-user-bg); color: var(--text-main); border-bottom-right-radius: 4px; }
+        .message.ai .message-content { background-color: transparent; padding: 12px 0; width: 100%; box-shadow: none; overflow-x: auto; }
+        
+        .ai-icon { color: var(--accent-orange); margin-top: 14px; width: 26px; height: 26px; flex-shrink: 0; }
+        
+        /* MathJax & Text Style */
+        .message.ai .message-content p { margin-bottom: 14px; }
+        .message.ai .message-content strong { font-weight: 600; color: #433e38; }
+        mjx-container { font-size: 110% !important; margin: 8px 0; }
 
-        /* Preview Panel */
-        .preview-panel { display: none; flex: 1; background: #000; flex-direction: column; border-left: 1px solid #ddd; position: relative; }
-        body.split-view .preview-panel { display: flex; }
+        /* Annotation Links */
+        .annotation-link {
+            display: inline-flex; align-items: center; gap: 4px; color: var(--accent-orange);
+            background: var(--accent-orange-light); padding: 2px 10px; border-radius: 8px; cursor: pointer;
+            font-size: 0.9em; font-weight: 500; transition: all 0.3s;
+        }
+        .annotation-link::before { content: '◉'; font-size: 0.65em; opacity: 0.8; }
+        .annotation-link:hover, .annotation-link.active { background: var(--accent-orange); color: white; transform: translateY(-2px); }
+
+        /* --- INPUT BOX --- */
+        .chat-wrapper { width: 100%; display: flex; flex-direction: column; animation: slideUp 0.8s backwards 0.2s; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .chat-box {
+            background-color: var(--chat-bg); border: 1px solid var(--chat-border); border-radius: 20px;
+            padding: 18px 22px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;
+            min-height: 120px; transition: box-shadow 0.3s;
+        }
+        .chat-box:focus-within { box-shadow: var(--shadow-md), var(--shadow-glow); border-color: rgba(209, 107, 71, 0.3); }
+
+        .chat-box textarea { width: 100%; border: none; outline: none; resize: none; font-size: 16px; background: transparent; flex-grow: 1; margin-bottom: 16px; font-family: inherit; }
         
-        #svg-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #030613; position: relative; cursor: grab; }
-        #svg-wrapper:active { cursor: grabbing; }
-        #svg-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-        #svg-container svg { width: 100%; height: 100%; pointer-events: none; } /* Để JS xử lý zoom */
+        .chat-controls { display: flex; justify-content: space-between; align-items: center; }
+        .controls-left i { font-size: 22px; color: var(--text-muted); cursor: pointer; }
         
-        /* Controls */
-        .controls { position: absolute; bottom: 20px; right: 20px; display: flex; gap: 5px; }
-        .controls button { width: 35px; height: 35px; background: rgba(255,255,255,0.2); border: none; color: #fff; border-radius: 5px; cursor: pointer; backdrop-filter: blur(5px); }
-        .controls button:hover { background: var(--accent-orange); }
+        .send-btn {
+            background-color: var(--text-main); color: white; width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s;
+        }
+        .send-btn:hover { background-color: var(--accent-orange); transform: translateY(-2px); }
+        .send-btn.disabled { opacity: 0.5; pointer-events: none; }
+
+        /* --- PREVIEW PANEL (CANVAS) --- */
+        .preview-panel {
+            display: none; flex: 0 0 0; flex-direction: column; height: 100%; background: var(--bg-color);
+            border-left: 1px solid var(--chat-border); transition: flex 0.6s cubic-bezier(0.25, 1, 0.3, 1), opacity 0.4s ease;
+            opacity: 0; position: relative;
+        }
+        body.split-view .preview-panel { display: flex; flex: 0 0 60%; opacity: 1; }
+
+        .preview-header {
+            padding: 16px 24px; border-bottom: 1px solid var(--chat-border); display: flex; justify-content: space-between;
+            background: var(--chat-bg); z-index: 20;
+        }
+        .preview-header span { font-weight: 600; }
+        .btn-action {
+            width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--chat-border);
+            background: var(--chat-bg); cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .btn-action:hover { background: var(--msg-user-bg); color: var(--accent-orange); }
+
+        .preview-frame-wrap {
+            flex: 1; padding: 24px; display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+            background: radial-gradient(circle at center, #ffffff 0%, #fcfbf8 100%);
+        }
+
+        /* SVG CONTAINER (BLUEPRINT STYLE - LIGHT) */
+        #svg-container {
+            width: 100%; height: 100%; border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15) inset, 0 10px 40px rgba(0, 0, 0, 0.08);
+            background-color: #030613; /* Giữ nền tối cho vũ trụ */
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), 
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px; background-position: center center;
+            overflow: hidden; position: relative; cursor: grab;
+        }
+        #svg-container:active { cursor: grabbing; }
+
+        /* VIGNETTE */
+        #svg-container::after {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.8); pointer-events: none; border-radius: 20px;
+        }
+        #svg-container svg { width: 100%; height: 100%; z-index: 1; transform-origin: center center; }
+
+        /* --- ZOOM CONTROLS --- */
+        .zoom-controls {
+            position: absolute; bottom: 40px; right: 40px; display: flex; flex-direction: column; gap: 8px;
+            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); padding: 8px; border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); z-index: 100;
+        }
+        .zoom-controls button {
+            width: 38px; height: 38px; border-radius: 8px; border: none; background: rgba(0, 0, 0, 0.4);
+            color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: 0.2s;
+        }
+        .zoom-controls button:hover { background: var(--accent-orange); transform: scale(1.1); }
+
+        /* HIGHLIGHT & TOOLTIP */
+        #svg-container .svg-highlight-outline { filter: drop-shadow(0 0 15px rgba(255, 157, 118, 0.9)) !important; }
         
-        /* Highlight */
-        .highlight-link { color: var(--accent-orange); cursor: pointer; font-weight: 600; background: rgba(209, 107, 71, 0.1); padding: 0 5px; border-radius: 4px; }
-        .highlight-link:hover { background: var(--accent-orange); color: #fff; }
-        .svg-active { filter: drop-shadow(0 0 10px #ff9d76) !important; stroke: #ff9d76 !important; stroke-width: 2px; }
+        .svg-tooltip {
+            position: fixed; background: rgba(255, 255, 255, 0.95); color: var(--accent-orange);
+            padding: 6px 14px; border-radius: 10px; font-weight: 600; border: 1px solid rgba(209, 107, 71, 0.2);
+            pointer-events: none; opacity: 0; z-index: 1000; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+        .svg-tooltip.visible { opacity: 1; }
+        
+        .blinking-cursor::after { content: '▋'; animation: blink 1s step-end infinite; color: var(--accent-orange); margin-left: 4px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
     </style>
 </head>
-<body>
 
-<main class="main-content">
-    <div class="chat-container">
-        <div id="chat-history">
-            <div class="message ai">
-                <svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                <div class="message-content">Chào bạn! Hãy yêu cầu tôi mô phỏng hiện tượng khoa học (VD: Trái Đất quay quanh Mặt Trời).</div>
+<body>
+    <main class="main-content">
+        <div class="center-container" id="main-container">
+            <div id="welcome-screen">
+                <div class="heading">
+                    <svg viewBox="0 0 24 24" fill="none" class="ph-activity" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    <h1>AI Mô phỏng Khoa học</h1>
+                </div>
+                <p>Mô tả hiện tượng khoa học, AI sẽ giải thích (có công thức) và tạo đồ họa SVG <b>sống động, tương tác</b> để minh họa.</p>
+            </div>
+            
+            <div id="chat-history"></div>
+            
+            <div class="chat-wrapper">
+                <div class="chat-box">
+                    <textarea id="user-input" placeholder="Ví dụ: Mô phỏng Trái Đất quay quanh Mặt Trời..." rows="2"></textarea>
+                    <div class="chat-controls">
+                        <div class="controls-left"><i class="ph ph-plus"></i></div>
+                        <div class="controls-right">
+                            <div class="send-btn" id="send-btn"><i class="ph ph-arrow-up"></i></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="input-area">
-        <textarea id="user-input" rows="1" placeholder="Nhập yêu cầu..."></textarea>
-        <div class="send-btn" id="send-btn"><i class="ph ph-arrow-up"></i></div>
-    </div>
-</main>
+    </main>
 
-<aside class="preview-panel">
-    <div id="svg-wrapper">
-        <div id="svg-container"></div>
-    </div>
-    <div class="controls">
-        <button id="z-in"><i class="ph ph-plus"></i></button>
-        <button id="z-reset"><i class="ph ph-corners-out"></i></button>
-        <button id="z-out"><i class="ph ph-minus"></i></button>
-    </div>
-</aside>
+    <aside class="preview-panel" id="preview-panel">
+        <div class="preview-header">
+            <span>Minh họa mô phỏng (Có thể Zoom & Kéo thả)</span>
+            <div class="header-actions">
+                <button type="button" class="btn-action" id="btn-reload" title="Tải lại SVG" style="display:none;"><i class="ph ph-arrows-clockwise"></i></button>
+                <button type="button" class="btn-action" id="preview-close" title="Đóng panel"><i class="ph ph-x"></i></button>
+            </div>
+        </div>
+        <div class="preview-frame-wrap">
+            <div id="svg-container"></div>
+            <div class="zoom-controls">
+                <button id="btn-zoom-in" title="Phóng to"><i class="ph ph-magnifying-glass-plus"></i></button>
+                <button id="btn-zoom-reset" title="Mặc định"><i class="ph ph-corners-out"></i></button>
+                <button id="btn-zoom-out" title="Thu nhỏ"><i class="ph ph-magnifying-glass-minus"></i></button>
+            </div>
+        </div>
+    </aside>
+    <div class="svg-tooltip" id="svg-tooltip"></div>
 
-<script>
-    const chatHistory = document.getElementById('chat-history');
-    const svgContainer = document.getElementById('svg-container');
-    const svgWrapper = document.getElementById('svg-wrapper');
-    const userInput = document.getElementById('user-input');
-    
-    // --- ZOOM & PAN LOGIC ---
-    let scale = 1, pX = 0, pY = 0, isDown = false, startX, startY;
-    
-    function updateTransform() { svgContainer.style.transform = `translate(${pX}px, ${pY}px) scale(${scale})`; }
-    
-    svgWrapper.addEventListener('wheel', e => {
-        e.preventDefault();
-        scale += e.deltaY * -0.001;
-        scale = Math.min(Math.max(.125, scale), 4);
-        updateTransform();
-    });
-    
-    svgWrapper.addEventListener('mousedown', e => { isDown = true; startX = e.pageX - pX; startY = e.pageY - pY; });
-    svgWrapper.addEventListener('mouseleave', () => isDown = false);
-    svgWrapper.addEventListener('mouseup', () => isDown = false);
-    svgWrapper.addEventListener('mousemove', e => {
-        if(!isDown) return;
-        e.preventDefault();
-        pX = e.pageX - startX;
-        pY = e.pageY - startY;
-        updateTransform();
-    });
+    <script>
+        marked.setOptions({ breaks: true });
+        
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const chatHistory = document.getElementById('chat-history');
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const mainContainer = document.getElementById('main-container');
+        const svgContainer = document.getElementById('svg-container');
+        const btnReload = document.getElementById('btn-reload');
+        const svgTooltip = document.getElementById('svg-tooltip');
 
-    document.getElementById('z-in').onclick = () => { scale *= 1.2; updateTransform(); };
-    document.getElementById('z-out').onclick = () => { scale /= 1.2; updateTransform(); };
-    document.getElementById('z-reset').onclick = () => { scale = 1; pX = 0; pY = 0; updateTransform(); };
+        let isGenerating = false; let lastGeneratedSvg = ''; let conversationHistory = [];
+        let scale = 1; let panX = 0; let panY = 0; let isPanning = false; let startClientX = 0; let startClientY = 0;
 
-    // --- CHAT LOGIC ---
-    function addMsg(role, html) {
-        const div = document.createElement('div');
-        div.className = `message ${role}`;
-        div.innerHTML = role === 'ai' ? 
-            `<svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg><div class="message-content">${html}</div>` : 
-            `<div class="message-content">${html}</div>`;
-        chatHistory.appendChild(div);
-        chatHistory.scrollTop = chatHistory.scrollHeight;
-        return div;
-    }
-
-    // Xử lý link [-> id]
-    window.processLinks = function(txt) {
-        return marked.parse(txt).replace(/\[→\s*([a-zA-Z0-9_-]+)\]/g, 
-            `<span class="highlight-link" onmouseover="hl('$1',1)" onmouseout="hl('$1',0)">$1</span>`);
-    }
-
-    window.hl = function(id, on) {
-        const el = svgContainer.querySelector('#'+id);
-        if(el) {
-            if(on) el.classList.add('svg-active');
-            else el.classList.remove('svg-active');
+        function updateSvgTransform() {
+            const svgEl = svgContainer.querySelector('svg');
+            if (svgEl) svgEl.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
         }
-    }
+        function resetZoomAndPan() { scale = 1; panX = 0; panY = 0; updateSvgTransform(); }
 
-    async function send() {
-        const txt = userInput.value.trim();
-        if(!txt) return;
+        svgContainer.addEventListener('wheel', (e) => {
+            e.preventDefault(); const zoomSensitivity = 0.05;
+            if (e.deltaY < 0) scale += zoomSensitivity; else scale -= zoomSensitivity;
+            scale = Math.min(Math.max(0.2, scale), 5); updateSvgTransform();
+        });
         
-        userInput.value = '';
-        addMsg('user', txt);
-        const aiMsgDiv = addMsg('ai', 'Đang suy nghĩ...').querySelector('.message-content');
+        svgContainer.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return; isPanning = true;
+            startClientX = e.clientX - panX; startClientY = e.clientY - panY;
+            svgContainer.style.cursor = 'grabbing';
+        });
         
-        try {
-            const res = await fetch('/api/simulate/stream', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({prompt: txt})
+        window.addEventListener('mousemove', (e) => { 
+            if (!isPanning) return; 
+            panX = e.clientX - startClientX; 
+            panY = e.clientY - startClientY; 
+            updateSvgTransform(); 
+        });
+        
+        window.addEventListener('mouseup', () => { isPanning = false; svgContainer.style.cursor = 'grab'; });
+        window.addEventListener('mouseleave', () => { isPanning = false; svgContainer.style.cursor = 'grab'; });
+
+        document.getElementById('btn-zoom-in').addEventListener('click', () => { scale = Math.min(scale + 0.2, 5); updateSvgTransform(); });
+        document.getElementById('btn-zoom-out').addEventListener('click', () => { scale = Math.max(scale - 0.2, 0.2); updateSvgTransform(); });
+        document.getElementById('btn-zoom-reset').addEventListener('click', resetZoomAndPan);
+
+        function appendMessage(sender, htmlContent, id = '') {
+            const msgDiv = document.createElement('div'); msgDiv.className = `message ${sender}`; if (id) msgDiv.id = `msg-${id}`;
+            if (sender === 'ai') msgDiv.innerHTML = `<svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg><div class="message-content">${htmlContent}</div>`;
+            else msgDiv.innerHTML = `<div class="message-content">${htmlContent.replace(/\n/g, '<br>')}</div>`;
+            chatHistory.appendChild(msgDiv); chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        function updateAIMessage(id, htmlContent, isBlinking = true) {
+            const msgDiv = document.getElementById(`msg-${id}`);
+            if (msgDiv) {
+                msgDiv.querySelector('.message-content').innerHTML = htmlContent + (isBlinking ? '<span class="blinking-cursor"></span>' : '');
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            }
+        }
+
+        function processAnnotations(markdownText) {
+            let html = marked.parse(markdownText);
+            html = html.replace(/\[→\s*([a-zA-Z0-9_-]+)\]/g, (match, id) => {
+                return `<span class="annotation-link" data-target="${id}" onmouseenter="highlightSvgElement('${id}', true)" onmouseleave="highlightSvgElement('${id}', false)">${id}</span>`;
             });
+            return html;
+        }
 
-            const reader = res.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '', fullExpl = '';
+        function highlightSvgElement(elementId, active) {
+            const svgEl = svgContainer.querySelector(`#${CSS.escape(elementId)}`);
+            if (!svgEl) return;
+            if (active) svgEl.classList.add('svg-highlight-outline'); else svgEl.classList.remove('svg-highlight-outline');
+        }
 
-            while(true) {
-                const {done, value} = await reader.read();
-                if(done) break;
-                buffer += decoder.decode(value, {stream: true});
-                const lines = buffer.split('\n\n');
-                buffer = lines.pop();
+        function highlightAnnotationLink(elementId, active) {
+            document.querySelectorAll(`.annotation-link[data-target="${elementId}"]`).forEach(link => {
+                if (active) link.classList.add('active'); else link.classList.remove('active');
+            });
+        }
 
-                for(const line of lines) {
-                    if(line.startsWith('data: ')) {
-                        const data = JSON.parse(line.slice(6));
-                        if(data.c) {
-                            if(line.includes('event: explanation')) {
-                                fullExpl += data.c;
-                                aiMsgDiv.innerHTML = processLinks(fullExpl);
-                            } else if(line.includes('event: svg')) {
-                                document.body.classList.add('split-view');
-                                svgContainer.innerHTML = data.c; // Render SVG sạch
-                            }
+        function setupSvgInteraction() {
+            const svgEl = svgContainer.querySelector('svg'); if (!svgEl) return;
+            const ignoreTags = ['filter', 'radialgradient', 'lineargradient', 'defs', 'style', 'animate', 'animatemotion', 'animatetransform', 'g'];
+            svgEl.querySelectorAll('[id]').forEach(el => {
+                if (ignoreTags.includes(el.tagName.toLowerCase())) return;
+                el.addEventListener('mouseenter', (e) => {
+                    if (isPanning) return; highlightAnnotationLink(el.id, true);
+                    el.classList.add('svg-highlight-outline'); svgTooltip.textContent = `#${el.id}`;
+                    svgTooltip.classList.add('visible'); updateTooltipPosition(e);
+                });
+                el.addEventListener('mouseleave', () => { highlightAnnotationLink(el.id, false); el.classList.remove('svg-highlight-outline'); svgTooltip.classList.remove('visible'); });
+                el.addEventListener('mousemove', (e) => { if (!isPanning) updateTooltipPosition(e); });
+            });
+        }
+
+        function updateTooltipPosition(e) { svgTooltip.style.left = (e.clientX + 16) + 'px'; svgTooltip.style.top = (e.clientY + 16) + 'px'; }
+
+        async function sendMessage() {
+            const text = userInput.value.trim(); if (!text || isGenerating) return;
+            welcomeScreen.style.display = 'none'; chatHistory.style.display = 'flex'; mainContainer.classList.add('chat-active');
+            isGenerating = true; userInput.value = ''; userInput.disabled = true; sendBtn.classList.add('disabled');
+            svgContainer.innerHTML = ''; btnReload.style.display = 'none';
+
+            appendMessage('user', text); const loadingId = Date.now().toString();
+            appendMessage('ai', 'Đang tính toán hệ tọa độ và tạo mô phỏng...', loadingId);
+
+            try {
+                const res = await fetch('/api/simulate/stream', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: text, last_svg: lastGeneratedSvg || undefined, history: conversationHistory })
+                });
+
+                if (!res.ok) throw new Error("Lỗi Server");
+
+                const reader = res.body.getReader(); const decoder = new TextDecoder('utf-8');
+                let buffer = ''; let lastExplanation = ''; let receivedSvg = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const chunks = buffer.split('\n\n'); buffer = chunks.pop() || '';
+
+                    for (const chunk of chunks) {
+                        const lines = chunk.split('\n'); let eventType = ''; let dataLine = '';
+                        for (const line of lines) {
+                            if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+                            if (line.startsWith('data: ')) dataLine += line.slice(6).trim();
+                        }
+                        if (!dataLine) continue;
+
+                        const parsed = JSON.parse(dataLine);
+                        if (eventType === 'explanation' && parsed.c) {
+                            lastExplanation += parsed.c;
+                            updateAIMessage(loadingId, processAnnotations(lastExplanation), true);
+                        } else if (eventType === 'svg' && parsed.c) {
+                            receivedSvg = parsed.c; lastGeneratedSvg = receivedSvg;
+                            document.body.classList.add('split-view');
+                            svgContainer.innerHTML = receivedSvg;
+                            resetZoomAndPan(); btnReload.style.display = 'flex'; setTimeout(setupSvgInteraction, 150);
                         }
                     }
                 }
-            }
-            // Render công thức Toán sau khi xong
-            if(window.MathJax) MathJax.typesetPromise([aiMsgDiv]);
+                updateAIMessage(loadingId, processAnnotations(lastExplanation), false);
+                conversationHistory.push({ role: 'user', content: text }, { role: 'assistant', content: lastExplanation });
 
-        } catch(e) { aiMsgDiv.innerHTML = 'Lỗi kết nối!'; }
-    }
+                // Render Toán học (MathJax) sau khi hoàn tất stream
+                if (window.MathJax) {
+                    MathJax.typesetPromise([document.getElementById(`msg-${loadingId}`)]);
+                }
 
-    document.getElementById('send-btn').onclick = send;
-    userInput.onkeydown = e => { if(e.key === 'Enter') send(); }
-</script>
+            } catch (err) { updateAIMessage(loadingId, `Lỗi kết nối API.`, false); }
+            finally { isGenerating = false; userInput.disabled = false; sendBtn.classList.remove('disabled'); userInput.focus(); }
+        }
+
+        document.getElementById('preview-close').addEventListener('click', () => document.body.classList.remove('split-view'));
+        btnReload.addEventListener('click', () => { if (lastGeneratedSvg) { svgContainer.innerHTML = lastGeneratedSvg; resetZoomAndPan(); setTimeout(setupSvgInteraction, 150); } });
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+        window.onload = () => userInput.focus();
+    </script>
 </body>
+
 </html>
