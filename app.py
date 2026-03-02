@@ -79,8 +79,9 @@ def simulate_stream():
             stream = client.chat.completions.create(
                 model=MODEL,
                 messages=messages,
-                temperature=0.4, 
+                temperature=1, 
                 stream=True,
+               reasoning_effort="high",
             )
 
             full_text = ""
@@ -164,3 +165,4 @@ def simulate_stream():
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=True)
+
